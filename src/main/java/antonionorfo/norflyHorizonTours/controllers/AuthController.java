@@ -5,6 +5,7 @@ import antonionorfo.norflyHorizonTours.exception.BadRequestException;
 import antonionorfo.norflyHorizonTours.payloads.LoginRequestDTO;
 import antonionorfo.norflyHorizonTours.payloads.LoginResponseDTO;
 import antonionorfo.norflyHorizonTours.payloads.UserDTO;
+import antonionorfo.norflyHorizonTours.payloads.UserResponseDTO;
 import antonionorfo.norflyHorizonTours.services.AuthService;
 import antonionorfo.norflyHorizonTours.services.UserService;
 import antonionorfo.norflyHorizonTours.tools.MailgunSender;
@@ -32,17 +33,13 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public User register(@RequestBody @Validated UserDTO body, BindingResult validationResult) {
+    public UserResponseDTO register(@RequestBody @Validated UserDTO body, BindingResult validationResult) {
         if (validationResult.hasErrors()) {
             String message = validationResult.getAllErrors().stream()
                     .map(objectError -> objectError.getDefaultMessage())
                     .collect(Collectors.joining(". "));
             throw new BadRequestException("Errore nel payload: " + message);
         }
-
-        userService.findByEmail(body.email()).ifPresent(existingUser -> {
-            throw new BadRequestException("Email " + body.email() + " già in uso!");
-        });
 
         User newUser = userService.registerUser(body);
 
@@ -52,6 +49,15 @@ public class AuthController {
             System.err.println("Errore nell'invio dell'email: " + e.getMessage());
         }
 
-        return newUser;
+        return new UserResponseDTO(
+                newUser.getUserId(),
+                newUser.getFirstName(),
+                newUser.getLastName(),
+                newUser.getUsername(),
+                newUser.getEmail(),
+                newUser.getProfilePhotoUrl()
+        );
     }
+
 }
+

@@ -30,9 +30,21 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        System.out.println("Request Path: " + request.getServletPath());
+
+        if (shouldNotFilter(request)) {
+            System.out.println("Skipping filter for path: " + request.getServletPath());
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
+        System.out.println("Authorization Header: " + authHeader);
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            System.out.println("Missing or malformed Authorization header");
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Missing or malformed Authorization header");
             return;
@@ -40,11 +52,15 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
 
         String accessToken = authHeader.substring(7);
         try {
+            System.out.println("Verifying Token: " + accessToken);
             jwt.verifyToken(accessToken);
+
             String userIdString = jwt.getUserIdFromToken(accessToken);
+            System.out.println("Extracted User ID: " + userIdString);
             UUID userId = UUID.fromString(userIdString);
 
             User currentUser = userService.findById(userId.toString());
+            System.out.println("Authenticated User: " + currentUser.getUsername());
 
             Authentication authentication = new UsernamePasswordAuthenticationToken(
                     currentUser, null, currentUser.getAuthorities()
@@ -52,16 +68,22 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (Exception ex) {
+            System.out.println("Error verifying token: " + ex.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid or expired token");
             return;
         }
 
+        System.out.println("Proceeding with the filter chain...");
         filterChain.doFilter(request, response);
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        return new AntPathMatcher().match("/auth/**", request.getServletPath());
+        String servletPath = request.getServletPath();
+        boolean shouldSkip = new AntPathMatcher().match("/auth/**", servletPath);
+        System.out.println("Should not filter? " + shouldSkip + " for path: " + servletPath);
+        return shouldSkip;
     }
 }
+
