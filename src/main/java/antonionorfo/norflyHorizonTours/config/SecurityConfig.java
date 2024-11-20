@@ -30,6 +30,7 @@ public class SecurityConfig {
                 .and()
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/countries/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtCheckerFilter, UsernamePasswordAuthenticationFilter.class);
