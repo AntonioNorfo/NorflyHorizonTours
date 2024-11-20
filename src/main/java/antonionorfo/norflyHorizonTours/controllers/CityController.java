@@ -1,58 +1,48 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
-import antonionorfo.norflyHorizonTours.entities.City;
-import antonionorfo.norflyHorizonTours.payloads.CountryDetailsDTO;
+import antonionorfo.norflyHorizonTours.payloads.CityDTO;
 import antonionorfo.norflyHorizonTours.services.CityService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
+@RequestMapping("/cities")
 @RequiredArgsConstructor
 public class CityController {
 
+    private static final Logger logger = LoggerFactory.getLogger(CityController.class);
+
     private final CityService cityService;
 
-    // Get all countries
-    @GetMapping("/countries")
-    public List<Map<String, String>> getAllCountries() {
-        return cityService.fetchAllCountries();
+    @GetMapping("/db/{countryIdentifier}")
+    public List<CityDTO> getCitiesByCountryFromDB(@PathVariable String countryIdentifier) {
+        logger.info("Fetching cities from DB for country identifier: {}", countryIdentifier);
+        return cityService.getCitiesByCountryFromDB(countryIdentifier);
     }
 
-    // Get countries by region
-    @GetMapping("/countries/region/{region}")
-    public List<Map<String, String>> getCountriesByRegion(@PathVariable String region) {
-        return cityService.fetchCountriesByRegion(region);
+
+    @GetMapping("/geonames/{countryCode}")
+    public List<CityDTO> getCitiesByCountryFromGeoNames(@PathVariable String countryCode) {
+        logger.info("Fetching cities from GeoNames for country code: {}", countryCode);
+        return cityService.getCitiesByCountryFromGeoNames(countryCode);
     }
 
-    // Get details for a specific country
-    @GetMapping("/countries/{code}")
-    public CountryDetailsDTO getCountryDetails(@PathVariable String code) {
-        return cityService.fetchCountryDetails(code);
+    @GetMapping("/region/{region}/db")
+    public List<CityDTO> getCitiesByRegionFromDB(@PathVariable String region) {
+        logger.info("Fetching cities from DB for region: {}", region);
+        return cityService.getCitiesByRegionFromDB(region);
     }
 
-    // Get cities for a specific country
-    @GetMapping("/countries/{countryCode}/cities")
-    public List<String> getCitiesByCountryFromApi(@PathVariable String countryCode) {
-        return cityService.fetchCitiesByCountry(countryCode);
-    }
-
-    // Get saved cities for a specific country
-    @GetMapping("/countries/{country}/saved-cities")
-    public List<City> getSavedCitiesByCountry(@PathVariable String country) {
-        return cityService.getCitiesByCountry(country);
-    }
-
-    // Save a city
-    @PostMapping("/cities")
-    @ResponseStatus(HttpStatus.CREATED)
-    public City saveCity(@RequestBody Map<String, String> cityData) {
-        String name = cityData.get("name");
-        String country = cityData.get("country");
-        String coordinates = cityData.getOrDefault("coordinates", "");
-        return cityService.saveCity(name, country, coordinates);
+    @GetMapping("/region/{region}/geonames")
+    public List<CityDTO> getCitiesByRegionFromGeoNames(@PathVariable String region) {
+        logger.info("Fetching cities from GeoNames for region: {}", region);
+        return cityService.getCitiesByRegionFromGeoNames(region);
     }
 }

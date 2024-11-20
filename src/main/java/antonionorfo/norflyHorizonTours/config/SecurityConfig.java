@@ -18,7 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Lazy  // Evita la dipendenza circolare
+    @Lazy
     private final JWTCheckerFilter jwtCheckerFilter;
 
     @Bean
@@ -37,7 +37,6 @@ public class SecurityConfig {
         System.out.println("Security filter chain configured successfully.");
         return http.build();
     }
-
 
     @Bean
     public PasswordEncoder passwordEncoder() {

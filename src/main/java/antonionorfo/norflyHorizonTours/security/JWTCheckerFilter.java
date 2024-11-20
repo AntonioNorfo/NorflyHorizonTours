@@ -32,7 +32,12 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        System.out.println("=== Incoming Request ===");
         System.out.println("Request Path: " + request.getServletPath());
+        System.out.println("Request Headers:");
+        request.getHeaderNames().asIterator().forEachRemaining(header ->
+                System.out.println(header + ": " + request.getHeader(header))
+        );
 
         if (shouldNotFilter(request)) {
             System.out.println("Skipping filter for path: " + request.getServletPath());
@@ -74,6 +79,14 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
             return;
         }
 
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) {
+            System.out.println("Authentication failed, rejecting request");
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.getWriter().write("Forbidden");
+            return;
+        }
+
         System.out.println("Proceeding with the filter chain...");
         filterChain.doFilter(request, response);
     }
@@ -81,9 +94,9 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String servletPath = request.getServletPath();
-        boolean shouldSkip = new AntPathMatcher().match("/auth/**", servletPath);
+        boolean shouldSkip = new AntPathMatcher().match("/auth/**", servletPath)
+                || new AntPathMatcher().match("/countries/**", servletPath);
         System.out.println("Should not filter? " + shouldSkip + " for path: " + servletPath);
         return shouldSkip;
     }
 }
-

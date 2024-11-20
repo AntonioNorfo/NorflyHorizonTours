@@ -1,9 +1,16 @@
 package antonionorfo.norflyHorizonTours.services;
 
 import antonionorfo.norflyHorizonTours.entities.City;
+import antonionorfo.norflyHorizonTours.entities.Country;
+import antonionorfo.norflyHorizonTours.entities.Excursion;
+import antonionorfo.norflyHorizonTours.enums.DifficultyLevel;
+import antonionorfo.norflyHorizonTours.payloads.CityDTO;
 import antonionorfo.norflyHorizonTours.payloads.CountryDetailsDTO;
 import antonionorfo.norflyHorizonTours.payloads.CountryDetailsDTO.MarkerInfo;
 import antonionorfo.norflyHorizonTours.repositories.CityRepository;
+import antonionorfo.norflyHorizonTours.repositories.CountryRepository;
+import antonionorfo.norflyHorizonTours.repositories.ExcursionRepository;
+import com.github.javafaker.Faker;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,10 +18,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,57 +30,131 @@ import java.util.stream.Collectors;
 public class CityService {
 
     private static final Logger logger = LoggerFactory.getLogger(CityService.class);
+
     private final RestTemplate restTemplate;
     private final CityRepository cityRepository;
+    private final CountryRepository countryRepository;
+    private final ExcursionRepository excursionRepository;
+    private final Faker faker = new Faker();
 
     @Value("${geonames.username}")
     private String geonamesUsername;
 
-    // Fetch all countries using RestCountries API
-    public List<Map<String, String>> fetchAllCountries() {
-        String url = "https://restcountries.com/v3.1/all";
-        logger.info("Fetching all countries from RestCountries API");
+    public List<CityDTO> getCitiesByCountryFromDB(String countryIdentifier) {
+        logger.info("Fetching cities from DB for country identifier: {}", countryIdentifier);
 
-        try {
-            List<Map<String, Object>> response = restTemplate.getForObject(url, List.class);
+        final Country country;
 
-            return response.stream()
-                    .map(country -> Map.of(
-                            "name", (String) ((Map<String, Object>) country.get("name")).get("common"),
-                            "code", (String) country.get("cca2"),
-                            "region", (String) country.get("region")
-                    ))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            logger.error("Error fetching countries: {}", e.getMessage());
-            throw new RuntimeException("Error while calling RestCountries API", e);
+        if (isUUID(countryIdentifier)) {
+            country = countryRepository.findById(UUID.fromString(countryIdentifier))
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with ID: " + countryIdentifier));
+        } else if (countryIdentifier.length() == 2) {
+            country = countryRepository.findByCode(countryIdentifier)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with code: " + countryIdentifier));
+        } else {
+            country = countryRepository.findByName(countryIdentifier)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with name: " + countryIdentifier));
         }
-    }
 
-    // Fetch countries by region
-    public List<Map<String, String>> fetchCountriesByRegion(String region) {
-        logger.info("Fetching countries by region: {}", region);
-        return fetchAllCountries().stream()
-                .filter(country -> region.equalsIgnoreCase(country.get("region")))
+        return cityRepository.findByCountry(country).stream()
+                .map(city -> new CityDTO(city.getId(), city.getName(), country.getId(), city.getDescription(), city.getCoordinates()))
                 .collect(Collectors.toList());
     }
 
-    // Fetch detailed information for a specific country
-    public CountryDetailsDTO fetchCountryDetails(String countryCode) {
-        String url = String.format("https://restcountries.com/v3.1/alpha/%s", countryCode);
-        logger.info("Fetching details for country: {}", countryCode);
+
+    private boolean isUUID(String value) {
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
+
+    public List<CityDTO> getCitiesByCountryFromGeoNames(String countryCode) {
+        String url = String.format("http://api.geonames.org/searchJSON?country=%s&featureClass=P&maxRows=15&username=%s",
+                countryCode, geonamesUsername);
+        logger.info("Fetching cities from GeoNames API for country code: {}", countryCode);
+
+        try {
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+
+            if (response != null && response.containsKey("geonames")) {
+                return ((List<Map<String, Object>>) response.get("geonames")).stream()
+                        .map(data -> new CityDTO(null, (String) data.get("name"), null, "Description not available",
+                                data.get("lat") + "," + data.get("lng")))
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching cities from GeoNames API.", e);
+        }
+
+        throw new IllegalArgumentException("Cities not found for country code: " + countryCode);
+    }
+
+    public List<CityDTO> getCitiesByRegionFromDB(String region) {
+        logger.info("Fetching cities from DB for region: {}", region);
+
+        List<Country> countries = countryRepository.findByRegion(region);
+        if (countries.isEmpty()) {
+            logger.warn("No countries found for region: {}", region);
+        }
+
+        return countries.stream()
+                .flatMap(country -> cityRepository.findByCountry(country).stream())
+                .map(city -> new CityDTO(city.getId(), city.getName(), city.getCountry().getId(), null, city.getCoordinates()))
+                .collect(Collectors.toList());
+    }
+
+
+    public List<CityDTO> getCitiesByRegionFromGeoNames(String region) {
+        logger.info("Fetching cities from GeoNames API for region: {}", region);
+        List<Map<String, String>> countries = fetchCountriesByRegion(region);
+
+        return countries.stream()
+                .flatMap(country -> getCitiesByCountryFromGeoNames(country.get("code")).stream())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Fetch countries by region from GeoNames API
+     */
+    private List<Map<String, String>> fetchCountriesByRegion(String region) {
+        String url = "https://restcountries.com/v3.1/all";
+        logger.info("Fetching countries by region from GeoNames API: {}", region);
 
         try {
             List<Map<String, Object>> response = restTemplate.getForObject(url, List.class);
+            if (response == null) {
+                throw new IllegalArgumentException("No countries found for region: " + region);
+            }
 
+            return response.stream()
+                    .filter(country -> region.equalsIgnoreCase((String) country.get("region")))
+                    .map(country -> Map.of(
+                            "name", (String) ((Map<String, Object>) country.get("name")).get("common"),
+                            "code", (String) country.get("cca2"),
+                            "region", region))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Error fetching countries by region.", e);
+            throw new RuntimeException("Error while fetching countries by region", e);
+        }
+    }
+
+    public CountryDetailsDTO fetchCountryDetails(String countryCode) {
+        String url = String.format("https://restcountries.com/v3.1/alpha/%s", countryCode);
+        logger.info("Fetching details for country code: {}", countryCode);
+
+        try {
+            List<Map<String, Object>> response = restTemplate.getForObject(url, List.class);
             if (response == null || response.isEmpty()) {
                 logger.error("No data found for country code: {}", countryCode);
                 throw new IllegalStateException("Invalid response from RestCountries API");
             }
 
             Map<String, Object> country = response.get(0);
-
-            // Create the DTO
             return CountryDetailsDTO.builder()
                     .name(((Map<String, String>) country.get("name")).get("common"))
                     .officialName(((Map<String, String>) country.get("name")).get("official"))
@@ -90,23 +172,68 @@ public class CityService {
                     .markerInfo(createMarkerInfo((List<?>) country.get("latlng")))
                     .build();
         } catch (Exception e) {
-            logger.error("Error fetching details for country: {}", e.getMessage());
+            logger.error("Error fetching details for country code: {}", e.getMessage());
             throw new RuntimeException("Error while fetching country details", e);
         }
     }
 
-    // Extract currency from the country data
+    public void populateCities() {
+        logger.info("Populating cities in DB for all countries.");
+        countryRepository.findAll().forEach(country -> {
+            List<CityDTO> cities = getCitiesByCountryFromGeoNames(country.getCode());
+            cities.forEach(cityDTO -> {
+                if (!cityRepository.existsByNameAndCountry(cityDTO.name(), country)) {
+                    City city = new City();
+                    city.setName(cityDTO.name());
+                    city.setCountry(country);
+                    city.setCoordinates(cityDTO.coordinates());
+                    cityRepository.save(city);
+                    logger.info("Saved city: {} in country: {}", city.getName(), country.getName());
+                }
+            });
+        });
+    }
+
+    public void generateExcursionsForCities() {
+        List<City> cities = cityRepository.findAll();
+
+        for (City city : cities) {
+            logger.info("Generating excursions for city: {}", city.getName());
+            List<Excursion> excursions = createExcursionsForCity(city);
+            excursionRepository.saveAll(excursions);
+        }
+    }
+
+    private List<Excursion> createExcursionsForCity(City city) {
+        List<Excursion> excursions = new ArrayList<>();
+
+        for (int i = 0; i < 10; i++) {
+            Excursion excursion = new Excursion();
+            excursion.setTitle(faker.commerce().productName() + " in " + city.getName());
+            excursion.setDescriptionExcursion(faker.lorem().sentence(20));
+            excursion.setPrice(BigDecimal.valueOf(faker.number().randomDouble(2, 50, 300)));
+            excursion.setDuration(faker.number().numberBetween(2, 8) + " hours");
+            excursion.setDifficultyLevel(DifficultyLevel.values()[faker.random().nextInt(DifficultyLevel.values().length)]);
+            excursion.setInclusions("Guide, Tickets, Transport");
+            excursion.setRules("Follow guide instructions, bring water.");
+            excursion.setNotRecommended("Pregnant women, people with heart conditions");
+            excursion.setMaxParticipants(faker.number().numberBetween(5, 30));
+            excursion.setCity(city);
+            excursions.add(excursion);
+        }
+
+        return excursions;
+    }
+
     private String extractCurrency(Map<String, Object> country) {
         if (!country.containsKey("currencies")) {
             return null;
         }
-
         Map<String, Map<String, String>> currencies = (Map<String, Map<String, String>>) country.get("currencies");
         Map.Entry<String, Map<String, String>> entry = currencies.entrySet().iterator().next();
         return entry.getValue().get("name") + " (" + entry.getValue().get("symbol") + ")";
     }
 
-    // Create MarkerInfo
     private MarkerInfo createMarkerInfo(List<?> latlng) {
         if (latlng == null || latlng.size() < 2) {
             throw new IllegalArgumentException("Invalid latitude and longitude data");
@@ -114,7 +241,6 @@ public class CityService {
         return new MarkerInfo(toDouble(latlng.get(0)), toDouble(latlng.get(1)));
     }
 
-    // Convert to Long
     private Long toLong(Object value) {
         if (value instanceof Integer) {
             return ((Integer) value).longValue();
@@ -125,62 +251,10 @@ public class CityService {
         return null;
     }
 
-    // Convert to Double
     private Double toDouble(Object value) {
         if (value instanceof Number) {
             return ((Number) value).doubleValue();
         }
         return null;
-    }
-
-    // Fetch cities by country using GeoNames API
-    public List<String> fetchCitiesByCountry(String countryCode) {
-        String url = String.format(
-                "http://api.geonames.org/searchJSON?country=%s&featureClass=P&maxRows=100&username=%s",
-                countryCode, geonamesUsername
-        );
-
-        logger.info("Fetching cities for country code: {}", countryCode);
-
-        try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-
-            if (response == null || !response.containsKey("geonames")) {
-                logger.error("No data found for country code: {}", countryCode);
-                throw new IllegalStateException("Invalid response from GeoNames API");
-            }
-
-            List<Map<String, Object>> geonames = (List<Map<String, Object>>) response.get("geonames");
-            return geonames.stream()
-                    .map(geoname -> (String) geoname.get("name"))
-                    .collect(Collectors.toList());
-        } catch (Exception e) {
-            logger.error("Error while fetching cities: {}", e.getMessage());
-            throw new RuntimeException("Error while calling GeoNames API", e);
-        }
-    }
-
-    // Save a city into the database
-    public City saveCity(String name, String country, String coordinates) {
-        logger.info("Saving city: {} in country: {}", name, country);
-
-        Optional<City> existingCity = cityRepository.findByNameAndCountry(name, country);
-        if (existingCity.isPresent()) {
-            logger.info("City already exists: {}", existingCity.get());
-            return existingCity.get();
-        }
-
-        City city = new City();
-        city.setName(name);
-        city.setCountry(country);
-        city.setCoordinates(coordinates);
-
-        return cityRepository.save(city);
-    }
-
-    // Retrieve a list of cities saved for a specific country
-    public List<City> getCitiesByCountry(String country) {
-        logger.info("Retrieving saved cities for country: {}", country);
-        return cityRepository.findByCountry(country);
     }
 }

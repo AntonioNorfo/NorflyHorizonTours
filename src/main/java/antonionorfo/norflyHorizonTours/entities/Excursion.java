@@ -40,10 +40,12 @@ public class Excursion {
 
     private Integer maxParticipants;
 
-
     @ManyToOne
     @JoinColumn(name = "city_id")
     private City city;
 
 
+    public void setDescription(String description) {
+        this.descriptionExcursion = description;
+    }
 }
