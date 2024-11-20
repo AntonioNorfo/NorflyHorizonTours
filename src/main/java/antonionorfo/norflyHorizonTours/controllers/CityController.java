@@ -45,4 +45,6 @@ public class CityController {
         logger.info("Fetching cities from GeoNames for region: {}", region);
         return cityService.getCitiesByRegionFromGeoNames(region);
     }
+
+
 }

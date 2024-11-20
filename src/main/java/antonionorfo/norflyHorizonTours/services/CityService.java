@@ -99,12 +99,22 @@ public class CityService {
         List<Country> countries = countryRepository.findByRegion(region);
         if (countries.isEmpty()) {
             logger.warn("No countries found for region: {}", region);
+            return List.of();
+        } else {
+            logger.info("Found {} countries in region: {}", countries.size(), region);
         }
 
-        return countries.stream()
-                .flatMap(country -> cityRepository.findByCountry(country).stream())
+        List<CityDTO> cities = countries.stream()
+                .flatMap(country -> {
+                    List<City> countryCities = cityRepository.findByCountry(country);
+                    logger.info("Country '{}' has {} cities", country.getName(), countryCities.size());
+                    return countryCities.stream();
+                })
                 .map(city -> new CityDTO(city.getId(), city.getName(), city.getCountry().getId(), null, city.getCoordinates()))
                 .collect(Collectors.toList());
+
+        logger.info("Total cities found for region {}: {}", region, cities.size());
+        return cities;
     }
 
 
