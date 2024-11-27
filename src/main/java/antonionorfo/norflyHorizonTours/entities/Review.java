@@ -32,4 +32,6 @@ public class Review {
 
     private Integer rating;
     private LocalDate reviewDate;
+
+    private boolean blocked = false;
 }

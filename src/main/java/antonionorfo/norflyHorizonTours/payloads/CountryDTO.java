@@ -2,6 +2,7 @@ package antonionorfo.norflyHorizonTours.payloads;
 
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+
 import java.util.UUID;
 
 public record CountryDTO(
@@ -16,4 +17,5 @@ public record CountryDTO(
         String code,
 
         String region
-) {}
+) {
+}

@@ -40,6 +40,9 @@ public class User implements UserDetails {
 
     private String profilePhotoUrl;
 
+    @Column(nullable = false)
+    private boolean isBlocked = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -48,6 +51,7 @@ public class User implements UserDetails {
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
+
 
     @Override
     public String getPassword() {

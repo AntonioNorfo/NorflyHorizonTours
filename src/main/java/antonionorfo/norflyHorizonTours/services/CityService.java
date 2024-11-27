@@ -61,7 +61,6 @@ public class CityService {
                 .collect(Collectors.toList());
     }
 
-
     private boolean isUUID(String value) {
         try {
             UUID.fromString(value);
@@ -71,6 +70,44 @@ public class CityService {
         }
     }
 
+    public List<CityDTO> searchCities(String countryCode, String cityName) {
+        List<CityDTO> citiesFromDB = cityRepository.findByName(cityName).stream()
+                .filter(city -> city.getCountry().getCode().equalsIgnoreCase(countryCode))
+                .map(city -> new CityDTO(city.getId(), city.getName(), city.getCountry().getId(), city.getDescription(), city.getCoordinates()))
+                .collect(Collectors.toList());
+
+        if (!citiesFromDB.isEmpty()) {
+            return citiesFromDB;
+        }
+
+        return fetchCitiesFromGeoNames(countryCode, cityName);
+    }
+
+    private List<CityDTO> fetchCitiesFromGeoNames(String countryCode, String cityName) {
+        String url = String.format("http://api.geonames.org/searchJSON?q=%s&country=%s&featureClass=P&maxRows=15&username=%s",
+                cityName, countryCode, geonamesUsername);
+
+        logger.info("Fetching cities from GeoNames for countryCode: {} and cityName: {}", countryCode, cityName);
+
+        try {
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            if (response != null && response.containsKey("geonames")) {
+                return ((List<Map<String, Object>>) response.get("geonames")).stream()
+                        .map(data -> new CityDTO(
+                                null,
+                                (String) data.get("name"),
+                                null,
+                                "Description not available",
+                                data.get("lat") + "," + data.get("lng")
+                        ))
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching cities from GeoNames: {}", e.getMessage());
+        }
+
+        return List.of();
+    }
 
     public List<CityDTO> getCitiesByCountryFromGeoNames(String countryCode) {
         String url = String.format("http://api.geonames.org/searchJSON?country=%s&featureClass=P&maxRows=15&username=%s",
@@ -83,8 +120,7 @@ public class CityService {
             if (response != null && response.containsKey("geonames")) {
                 return ((List<Map<String, Object>>) response.get("geonames")).stream()
                         .map(data -> new CityDTO(null, (String) data.get("name"), null, "Description not available",
-                                data.get("lat") + "," + data.get("lng")))
-                        .collect(Collectors.toList());
+                                data.get("lat") + "," + data.get("lng"))).collect(Collectors.toList());
             }
         } catch (Exception e) {
             logger.error("Error fetching cities from GeoNames API.", e);
@@ -117,7 +153,6 @@ public class CityService {
         return cities;
     }
 
-
     public List<CityDTO> getCitiesByRegionFromGeoNames(String region) {
         logger.info("Fetching cities from GeoNames API for region: {}", region);
         List<Map<String, String>> countries = fetchCountriesByRegion(region);
@@ -127,9 +162,6 @@ public class CityService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Fetch countries by region from GeoNames API
-     */
     private List<Map<String, String>> fetchCountriesByRegion(String region) {
         String url = "https://restcountries.com/v3.1/all";
         logger.info("Fetching countries by region from GeoNames API: {}", region);
@@ -188,20 +220,29 @@ public class CityService {
     }
 
     public void populateCities() {
-        logger.info("Populating cities in DB for all countries.");
-        countryRepository.findAll().forEach(country -> {
-            List<CityDTO> cities = getCitiesByCountryFromGeoNames(country.getCode());
-            cities.forEach(cityDTO -> {
-                if (!cityRepository.existsByNameAndCountry(cityDTO.name(), country)) {
-                    City city = new City();
-                    city.setName(cityDTO.name());
-                    city.setCountry(country);
-                    city.setCoordinates(cityDTO.coordinates());
-                    cityRepository.save(city);
-                    logger.info("Saved city: {} in country: {}", city.getName(), country.getName());
+        logger.info("Popolamento delle città nel DB da GeoNames.");
+        if (cityRepository.count() == 0) {
+            logger.info("Il DB delle città è vuoto, iniziando il popolamento.");
+            countryRepository.findAll().forEach(country -> {
+                try {
+                    List<CityDTO> cities = getCitiesByCountryFromGeoNames(country.getCode());
+                    cities.forEach(cityDTO -> {
+                        if (!cityRepository.existsByNameAndCountry(cityDTO.name(), country)) {
+                            City city = new City();
+                            city.setName(cityDTO.name());
+                            city.setCountry(country);
+                            city.setCoordinates(cityDTO.coordinates());
+                            cityRepository.save(city);
+                            logger.info("Città salvata: {} in Paese: {}", city.getName(), country.getName());
+                        }
+                    });
+                } catch (Exception e) {
+                    logger.error("Errore durante il popolamento delle città per il Paese: {}", country.getName(), e);
                 }
             });
-        });
+        } else {
+            logger.info("Il DB delle città è già popolato.");
+        }
     }
 
     public void generateExcursionsForCities() {

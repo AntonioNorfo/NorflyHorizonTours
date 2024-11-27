@@ -6,10 +6,8 @@ import antonionorfo.norflyHorizonTours.services.CountryService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -40,7 +38,6 @@ public class CountryController {
         return countryService.getCountryDetailsFromDB(countryIdentifier);
     }
 
-
     @GetMapping("/geonames/{countryCode}")
     public CountryDetailsDTO getCountryDetailsFromGeoNames(@PathVariable String countryCode) {
         logger.info("Fetching country details from GeoNames for code: {}", countryCode);
@@ -57,5 +54,10 @@ public class CountryController {
     public List<CountryDTO> getCountriesByRegionFromDB(@PathVariable String region) {
         logger.info("Fetching countries by region from DB: {}", region);
         return countryService.getCountriesByRegionFromDB(region);
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<CountryDTO>> searchCountries(@RequestParam String query) {
+        return ResponseEntity.ok(countryService.searchCountries(query));
     }
 }

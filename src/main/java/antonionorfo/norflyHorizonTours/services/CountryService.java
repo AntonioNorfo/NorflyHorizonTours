@@ -11,10 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,9 +26,8 @@ public class CountryService {
     @Value("${geonames.username}")
     private String geonamesUsername;
 
-    // Fetch all countries from DB
     public List<CountryDTO> getAllCountriesFromDB() {
-        logger.info("Fetching all countries from the database.");
+        logger.info("Fetching all countries from DB.");
         return countryRepository.findAll().stream()
                 .map(country -> new CountryDTO(
                         country.getId(),
@@ -42,7 +38,6 @@ public class CountryService {
                 .collect(Collectors.toList());
     }
 
-    // Fetch all countries from GeoNames API
     public List<CountryDTO> getAllCountriesFromGeoNames() {
         String url = String.format("http://api.geonames.org/countryInfoJSON?username=%s", geonamesUsername);
         logger.info("Fetching all countries from GeoNames API.");
@@ -60,34 +55,19 @@ public class CountryService {
                         .collect(Collectors.toList());
             }
         } catch (Exception e) {
-            logger.error("Error fetching countries from GeoNames API.", e);
+            logger.error("Error fetching countries from GeoNames API: {}", e.getMessage());
         }
 
         logger.warn("No countries found in GeoNames API response.");
-        return List.of();
+        return Collections.emptyList();
     }
 
-    // Fetch country details from DB by name, code, or UUID
     public CountryDTO getCountryDetailsFromDB(String countryIdentifier) {
         logger.info("Fetching country details from DB for identifier: {}", countryIdentifier);
-
-        Country country = null;
-
-        if (isUUID(countryIdentifier)) {
-            country = countryRepository.findById(UUID.fromString(countryIdentifier))
-                    .orElseThrow(() -> new IllegalArgumentException("Country not found with ID: " + countryIdentifier));
-        } else if (countryIdentifier.length() == 2) {
-            country = countryRepository.findByCode(countryIdentifier)
-                    .orElseThrow(() -> new IllegalArgumentException("Country not found with code: " + countryIdentifier));
-        } else {
-            country = countryRepository.findByName(countryIdentifier)
-                    .orElseThrow(() -> new IllegalArgumentException("Country not found with name: " + countryIdentifier));
-        }
-
+        Country country = findCountryByIdentifier(countryIdentifier);
         return new CountryDTO(country.getId(), country.getName(), country.getCode(), country.getRegion());
     }
 
-    // Fetch country details from GeoNames API
     public CountryDetailsDTO getCountryDetailsFromGeoNames(String countryCode) {
         String url = String.format("https://restcountries.com/v3.1/alpha/%s", countryCode);
         logger.info("Fetching details for country from GeoNames: {}", countryCode);
@@ -122,10 +102,26 @@ public class CountryService {
         }
     }
 
-    // Fetch countries by region from DB
     public List<CountryDTO> getCountriesByRegionFromDB(String region) {
         logger.info("Fetching countries by region from DB: {}", region);
-        return countryRepository.findByRegion(region).stream()
+
+        List<Country> countries;
+
+        if (region.length() == 2) {
+            logger.info("Region code detected: {}", region);
+            countries = countryRepository.findByRegion(region);
+        } else {
+            logger.info("Full region name detected: {}", region);
+            countries = countryRepository.findByRegionIgnoreCase(region);
+        }
+
+        if (countries.isEmpty()) {
+            logger.info("No countries found for region: {}", region);
+        } else {
+            logger.info("Fetched {} countries for region: {}", countries.size(), region);
+        }
+
+        return countries.stream()
                 .map(country -> new CountryDTO(
                         country.getId(),
                         country.getName(),
@@ -135,7 +131,6 @@ public class CountryService {
                 .collect(Collectors.toList());
     }
 
-    // Fetch countries by region from GeoNames API
     public List<CountryDTO> getCountriesByRegionFromGeoNames(String region) {
         logger.info("Fetching countries by region from GeoNames API: {}", region);
         return getAllCountriesFromGeoNames().stream()
@@ -143,39 +138,56 @@ public class CountryService {
                 .collect(Collectors.toList());
     }
 
-    // Populate DB with countries from GeoNames API
     public void populateCountries() {
-        String url = String.format("http://api.geonames.org/countryInfoJSON?username=%s", geonamesUsername);
-        logger.info("Populating database with countries from GeoNames API.");
+        logger.info("Populating countries from GeoNames.");
+        String geoNamesUrl = String.format("http://api.geonames.org/countryInfoJSON?username=%s", geonamesUsername);
 
         try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response != null && response.containsKey("geonames")) {
-                List<Map<String, Object>> countries = (List<Map<String, Object>>) response.get("geonames");
-
-                countries.forEach(countryData -> {
-                    String name = (String) countryData.get("countryName");
-                    String code = (String) countryData.get("countryCode");
-                    String continent = (String) countryData.get("continent");
-
-                    if (!countryRepository.existsByName(name)) {
-                        Country country = new Country();
-                        country.setName(name);
-                        country.setCode(code);
-                        country.setRegion(continent);
-                        countryRepository.save(country);
-                        logger.info("Saved country: {} ({})", name, code);
-                    }
-                });
-            } else {
-                logger.warn("No countries found in GeoNames API response.");
+            Map<String, Object> response = restTemplate.getForObject(geoNamesUrl, Map.class);
+            if (response == null || !response.containsKey("geonames")) {
+                logger.warn("No data returned from GeoNames.");
+                return;
             }
+
+            List<Map<String, Object>> geoNamesCountries = (List<Map<String, Object>>) response.get("geonames");
+
+            geoNamesCountries.forEach(countryData -> {
+                String name = (String) countryData.get("countryName");
+                String code = (String) countryData.get("countryCode");
+                String continent = (String) countryData.get("continent");
+
+                if (continent == null) {
+                    continent = "Unknown";
+                }
+
+                if (!countryRepository.existsByName(name)) {
+                    Country country = new Country();
+                    country.setName(name);
+                    country.setCode(code);
+                    country.setRegion(continent);
+                    countryRepository.save(country);
+                    logger.info("Saved country: {} ({}), continent: {}", name, code, continent);
+                }
+            });
         } catch (Exception e) {
-            logger.error("Error populating countries from GeoNames API.", e);
+            logger.error("Error populating countries: {}", e.getMessage());
         }
     }
 
-    // Helper method to extract currency
+
+    private Country findCountryByIdentifier(String identifier) {
+        if (isUUID(identifier)) {
+            return countryRepository.findById(UUID.fromString(identifier))
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with ID: " + identifier));
+        } else if (identifier.length() == 2) {
+            return countryRepository.findByCode(identifier)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with code: " + identifier));
+        } else {
+            return countryRepository.findByName(identifier)
+                    .orElseThrow(() -> new IllegalArgumentException("Country not found with name: " + identifier));
+        }
+    }
+
     private String extractCurrency(Map<String, Object> country) {
         if (!country.containsKey("currencies")) {
             return null;
@@ -192,7 +204,6 @@ public class CountryService {
         return currencyInfo.get("name") + " (" + currencyInfo.get("symbol") + ")";
     }
 
-    // Helper method to create MarkerInfo
     private CountryDetailsDTO.MarkerInfo createMarkerInfo(List<?> latlng) {
         if (latlng == null || latlng.size() < 2) {
             return null;
@@ -203,7 +214,6 @@ public class CountryService {
                 .build();
     }
 
-    // Helper method to check if a string is a valid UUID
     private boolean isUUID(String value) {
         try {
             UUID.fromString(value);
@@ -211,5 +221,56 @@ public class CountryService {
         } catch (IllegalArgumentException e) {
             return false;
         }
+    }
+
+    public List<CountryDTO> searchCountries(String query) {
+        List<CountryDTO> countriesFromDB = countryRepository.findByNameIgnoreCase(query).stream()
+                .map(country -> new CountryDTO(
+                        country.getId(),
+                        country.getName(),
+                        country.getCode(),
+                        country.getRegion()
+                ))
+                .collect(Collectors.toList());
+
+        if (!countriesFromDB.isEmpty()) {
+            return countriesFromDB;
+        }
+
+        countriesFromDB = countryRepository.findByCodeIgnoreCase(query).stream()
+                .map(country -> new CountryDTO(
+                        country.getId(),
+                        country.getName(),
+                        country.getCode(),
+                        country.getRegion()
+                ))
+                .collect(Collectors.toList());
+
+        return countriesFromDB.isEmpty() ? fetchCountriesFromGeoNames(query) : countriesFromDB;
+    }
+
+
+    private List<CountryDTO> fetchCountriesFromGeoNames(String query) {
+        String url = String.format("http://api.geonames.org/searchJSON?q=%s&featureClass=A&maxRows=15&username=%s", query, geonamesUsername);
+
+        logger.info("Fetching countries from GeoNames for query: {}", query);
+
+        try {
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+            if (response != null && response.containsKey("geonames")) {
+                return ((List<Map<String, Object>>) response.get("geonames")).stream()
+                        .map(data -> new CountryDTO(
+                                null,
+                                (String) data.get("countryName"),
+                                (String) data.get("countryCode"),
+                                (String) data.get("continent")
+                        ))
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching countries from GeoNames: {}", e.getMessage());
+        }
+
+        return List.of();
     }
 }

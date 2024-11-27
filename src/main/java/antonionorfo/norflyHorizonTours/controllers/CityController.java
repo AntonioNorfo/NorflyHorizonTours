@@ -5,10 +5,8 @@ import antonionorfo.norflyHorizonTours.services.CityService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -22,9 +20,17 @@ public class CityController {
     private final CityService cityService;
 
     @GetMapping("/db/{countryIdentifier}")
-    public List<CityDTO> getCitiesByCountryFromDB(@PathVariable String countryIdentifier) {
-        logger.info("Fetching cities from DB for country identifier: {}", countryIdentifier);
-        return cityService.getCitiesByCountryFromDB(countryIdentifier);
+    public ResponseEntity<List<CityDTO>> getCitiesByCountryFromDB(@PathVariable String countryIdentifier) {
+        try {
+            List<CityDTO> cities = cityService.getCitiesByCountryFromDB(countryIdentifier);
+            if (cities.isEmpty()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.ok(cities);
+        } catch (IllegalArgumentException e) {
+            logger.error("Errore: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 
 
@@ -46,5 +52,9 @@ public class CityController {
         return cityService.getCitiesByRegionFromGeoNames(region);
     }
 
+    @GetMapping("/search")
+    public ResponseEntity<List<CityDTO>> searchCities(@RequestParam String countryCode, @RequestParam String cityName) {
+        return ResponseEntity.ok(cityService.searchCities(countryCode, cityName));
+    }
 
 }

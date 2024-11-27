@@ -1,16 +1,16 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
 import antonionorfo.norflyHorizonTours.entities.User;
+import antonionorfo.norflyHorizonTours.enums.Role;
 import antonionorfo.norflyHorizonTours.exception.BadRequestException;
-import antonionorfo.norflyHorizonTours.payloads.LoginRequestDTO;
-import antonionorfo.norflyHorizonTours.payloads.LoginResponseDTO;
-import antonionorfo.norflyHorizonTours.payloads.UserDTO;
-import antonionorfo.norflyHorizonTours.payloads.UserResponseDTO;
+import antonionorfo.norflyHorizonTours.exception.DuplicateResourceException;
+import antonionorfo.norflyHorizonTours.payloads.*;
+import antonionorfo.norflyHorizonTours.repositories.UserRepository;
 import antonionorfo.norflyHorizonTours.services.AuthService;
-import antonionorfo.norflyHorizonTours.services.UserService;
 import antonionorfo.norflyHorizonTours.tools.MailgunSender;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +23,8 @@ import java.util.stream.Collectors;
 public class AuthController {
 
     private final AuthService authService;
-    private final UserService userService;
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
     private final MailgunSender mailgunSender;
 
     @PostMapping("/login")
@@ -38,15 +39,30 @@ public class AuthController {
             String message = validationResult.getAllErrors().stream()
                     .map(objectError -> objectError.getDefaultMessage())
                     .collect(Collectors.joining(". "));
-            throw new BadRequestException("Errore nel payload: " + message);
+            throw new BadRequestException("Payload error: " + message);
         }
 
-        User newUser = userService.registerUser(body);
+        if (userRepository.existsByEmail(body.email())) {
+            throw new DuplicateResourceException("Email already in use: " + body.email());
+        }
+        if (userRepository.existsByUsername(body.username())) {
+            throw new DuplicateResourceException("Username already in use: " + body.username());
+        }
+
+        User newUser = new User();
+        newUser.setFirstName(body.firstName());
+        newUser.setLastName(body.lastName());
+        newUser.setUsername(body.username());
+        newUser.setEmail(body.email());
+        newUser.setPassword(passwordEncoder.encode(body.password()));
+        newUser.setRole(Role.USER);
+
+        userRepository.save(newUser);
 
         try {
             mailgunSender.sendRegistrationEmail(newUser);
         } catch (Exception e) {
-            System.err.println("Errore nell'invio dell'email: " + e.getMessage());
+            System.err.println("Error sending registration email: " + e.getMessage());
         }
 
         return new UserResponseDTO(
@@ -59,5 +75,44 @@ public class AuthController {
         );
     }
 
+    @PostMapping("/register/admin")
+    @ResponseStatus(HttpStatus.CREATED)
+    public UserResponseDTO registerAdmin(@RequestBody @Validated AdminDTO body, BindingResult validationResult) {
+        if (validationResult.hasErrors()) {
+            String message = validationResult.getAllErrors().stream()
+                    .map(objectError -> objectError.getDefaultMessage())
+                    .collect(Collectors.joining(". "));
+            throw new BadRequestException("Payload error: " + message);
+        }
+
+        if (userRepository.existsByEmail(body.email())) {
+            throw new DuplicateResourceException("Email already in use: " + body.email());
+        }
+        if (userRepository.existsByUsername(body.username())) {
+            throw new DuplicateResourceException("Username already in use: " + body.username());
+        }
+
+        User newAdmin = new User();
+        newAdmin.setFirstName(body.firstName());
+        newAdmin.setLastName(body.lastName());
+        newAdmin.setUsername(body.username());
+        newAdmin.setEmail(body.email());
+        newAdmin.setPassword(passwordEncoder.encode(body.password()));
+        newAdmin.setRole(Role.ADMIN);
+
+        userRepository.save(newAdmin);
+
+        return new UserResponseDTO(
+                newAdmin.getUserId(),
+                newAdmin.getFirstName(),
+                newAdmin.getLastName(),
+                newAdmin.getUsername(),
+                newAdmin.getEmail(),
+                newAdmin.getProfilePhotoUrl()
+        );
+    }
+
+
 }
+
 

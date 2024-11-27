@@ -44,8 +44,11 @@ public class Excursion {
     @JoinColumn(name = "city_id")
     private City city;
 
+    public String getDescriptionExcursion() {
+        return descriptionExcursion;
+    }
 
-    public void setDescription(String description) {
-        this.descriptionExcursion = description;
+    public void setDescriptionExcursion(String descriptionExcursion) {
+        this.descriptionExcursion = descriptionExcursion;
     }
 }

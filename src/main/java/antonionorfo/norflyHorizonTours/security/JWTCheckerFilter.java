@@ -7,6 +7,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +23,8 @@ import java.util.UUID;
 @Component
 public class JWTCheckerFilter extends OncePerRequestFilter {
 
+    private static final Logger logger = LoggerFactory.getLogger(JWTCheckerFilter.class);
+
     private final JWT jwt;
     private final UserService userService;
 
@@ -32,24 +36,20 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        System.out.println("=== Incoming Request ===");
-        System.out.println("Request Path: " + request.getServletPath());
-        System.out.println("Request Headers:");
-        request.getHeaderNames().asIterator().forEachRemaining(header ->
-                System.out.println(header + ": " + request.getHeader(header))
-        );
+
+        String servletPath = request.getServletPath();
+        logger.info("=== Incoming Request ===");
+        logger.info("Request Path: {}", servletPath);
 
         if (shouldNotFilter(request)) {
-            System.out.println("Skipping filter for path: " + request.getServletPath());
+            logger.info("Skipping filter for path: {}", servletPath);
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
-        System.out.println("Authorization Header: " + authHeader);
-
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("Missing or malformed Authorization header");
+            logger.warn("Missing or malformed Authorization header for path: {}", servletPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Missing or malformed Authorization header");
             return;
@@ -57,15 +57,24 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
 
         String accessToken = authHeader.substring(7);
         try {
-            System.out.println("Verifying Token: " + accessToken);
+
+            logger.debug("Verifying Token: {}", accessToken);
             jwt.verifyToken(accessToken);
 
+            // Extract user ID and fetch user
             String userIdString = jwt.getUserIdFromToken(accessToken);
-            System.out.println("Extracted User ID: " + userIdString);
             UUID userId = UUID.fromString(userIdString);
+            logger.debug("Extracted User ID: {}", userId);
 
-            User currentUser = userService.findById(userId.toString());
-            System.out.println("Authenticated User: " + currentUser.getUsername());
+            User currentUser = userService.findById(userId);
+            if (currentUser == null) {
+                logger.error("User not found for ID: {}", userId);
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Invalid or expired token");
+                return;
+            }
+
+            logger.info("Authenticated User: {}", currentUser.getUsername());
 
             Authentication authentication = new UsernamePasswordAuthenticationToken(
                     currentUser, null, currentUser.getAuthorities()
@@ -73,30 +82,22 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (Exception ex) {
-            System.out.println("Error verifying token: " + ex.getMessage());
+            logger.error("Error verifying token for path {}: {}", servletPath, ex.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.getWriter().write("Invalid or expired token");
             return;
         }
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            System.out.println("Authentication failed, rejecting request");
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            response.getWriter().write("Forbidden");
-            return;
-        }
-
-        System.out.println("Proceeding with the filter chain...");
+        logger.info("Proceeding with the filter chain for path: {}", servletPath);
         filterChain.doFilter(request, response);
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+    protected boolean shouldNotFilter(HttpServletRequest request) {
         String servletPath = request.getServletPath();
         boolean shouldSkip = new AntPathMatcher().match("/auth/**", servletPath)
                 || new AntPathMatcher().match("/countries/**", servletPath);
-        System.out.println("Should not filter? " + shouldSkip + " for path: " + servletPath);
+        logger.debug("Should not filter? {} for path: {}", shouldSkip, servletPath);
         return shouldSkip;
     }
 }

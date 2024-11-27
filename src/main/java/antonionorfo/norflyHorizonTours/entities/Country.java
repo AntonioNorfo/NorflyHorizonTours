@@ -28,5 +28,7 @@ public class Country {
     @Column(unique = true, nullable = false)
     private String code;
 
+    @Column(nullable = false)
     private String region;
+
 }

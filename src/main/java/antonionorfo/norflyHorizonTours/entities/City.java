@@ -25,6 +25,8 @@ public class City {
     @JoinColumn(name = "country_id", nullable = false)
     private Country country;
 
+    private String code;
+
     private String description;
 
     private String coordinates;
