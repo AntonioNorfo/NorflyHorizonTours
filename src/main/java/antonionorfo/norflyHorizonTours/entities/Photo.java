@@ -22,6 +22,6 @@ public class Photo {
     private Boolean isCoverPhoto = false;
 
     @ManyToOne
-    @JoinColumn(name = "excursion_id")
+    @JoinColumn(name = "excursion_id", nullable = false)
     private Excursion excursion;
 }

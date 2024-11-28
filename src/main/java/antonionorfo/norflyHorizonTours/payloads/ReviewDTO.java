@@ -11,7 +11,6 @@ import java.util.UUID;
 public record ReviewDTO(
         UUID reviewId,
 
-        @NotNull(message = "User ID is required!")
         UUID userId,
 
         @NotNull(message = "Excursion ID is required!")
@@ -27,4 +26,7 @@ public record ReviewDTO(
 
         LocalDate reviewDate
 ) {
+    public ReviewDTO withUserId(UUID userId) {
+        return new ReviewDTO(this.reviewId, userId, this.excursionId, this.comment, this.rating, this.reviewDate);
+    }
 }

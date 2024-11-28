@@ -25,8 +25,10 @@ public class ReviewService {
     private final ExcursionRepository excursionRepository;
 
     public ReviewDTO addReview(ReviewDTO reviewDTO) {
+        // Verifica che l'utente esista
         User user = userRepository.findById(reviewDTO.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
+
         Excursion excursion = excursionRepository.findById(reviewDTO.excursionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found!"));
 
@@ -40,24 +42,35 @@ public class ReviewService {
         return mapToDTO(reviewRepository.save(review));
     }
 
-    public ReviewDTO updateReview(UUID reviewId, ReviewDTO reviewDTO) {
+    public ReviewDTO updateReview(UUID reviewId, ReviewDTO reviewDTO, UUID authenticatedUserId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found!"));
+
+        if (!review.getUser().getUserId().equals(authenticatedUserId) && !isAdmin(authenticatedUserId)) {
+            throw new ResourceNotFoundException("You do not have permission to update this review.");
+        }
 
         review.setComment(reviewDTO.comment());
         review.setRating(reviewDTO.rating());
+
         return mapToDTO(reviewRepository.save(review));
     }
 
-    public void deleteReview(UUID reviewId) {
+    public void deleteReview(UUID reviewId, UUID authenticatedUserId) {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new ResourceNotFoundException("Review not found!"));
+
+        if (!review.getUser().getUserId().equals(authenticatedUserId) && !isAdmin(authenticatedUserId)) {
+            throw new ResourceNotFoundException("You do not have permission to delete this review.");
+        }
+
         reviewRepository.delete(review);
     }
 
     public List<ReviewDTO> getReviewsForExcursion(UUID excursionId) {
         Excursion excursion = excursionRepository.findById(excursionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found!"));
+
         return reviewRepository.findByExcursion(excursion).stream()
                 .map(this::mapToDTO)
                 .collect(Collectors.toList());
@@ -72,5 +85,12 @@ public class ReviewService {
                 review.getRating(),
                 review.getReviewDate()
         );
+    }
+
+    private boolean isAdmin(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
+
+        return "ADMIN".equals(user.getRole());
     }
 }

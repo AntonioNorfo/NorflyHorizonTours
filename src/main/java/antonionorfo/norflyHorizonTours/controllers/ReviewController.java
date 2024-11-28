@@ -22,23 +22,34 @@ public class ReviewController {
     private final ReviewService reviewService;
 
     @PostMapping
-    public ResponseEntity<ReviewDTO> addReview(@RequestBody @Valid ReviewDTO reviewDTO) {
+    public ResponseEntity<ReviewDTO> addReview(
+            @RequestBody @Valid ReviewDTO reviewDTO,
+            @RequestHeader("User-ID") UUID authenticatedUserId
+    ) {
         logger.info("Adding review for excursion: {}", reviewDTO.excursionId());
+        reviewDTO = reviewDTO.withUserId(authenticatedUserId);
         ReviewDTO createdReview = reviewService.addReview(reviewDTO);
         return ResponseEntity.ok(createdReview);
     }
 
     @PutMapping("/{reviewId}")
-    public ResponseEntity<ReviewDTO> updateReview(@PathVariable UUID reviewId, @RequestBody @Valid ReviewDTO reviewDTO) {
+    public ResponseEntity<ReviewDTO> updateReview(
+            @PathVariable UUID reviewId,
+            @RequestBody @Valid ReviewDTO reviewDTO,
+            @RequestHeader("User-ID") UUID authenticatedUserId
+    ) {
         logger.info("Updating review with ID: {}", reviewId);
-        ReviewDTO updatedReview = reviewService.updateReview(reviewId, reviewDTO);
+        ReviewDTO updatedReview = reviewService.updateReview(reviewId, reviewDTO, authenticatedUserId);
         return ResponseEntity.ok(updatedReview);
     }
 
     @DeleteMapping("/{reviewId}")
-    public ResponseEntity<Void> deleteReview(@PathVariable UUID reviewId) {
+    public ResponseEntity<Void> deleteReview(
+            @PathVariable UUID reviewId,
+            @RequestHeader("User-ID") UUID authenticatedUserId
+    ) {
         logger.info("Deleting review with ID: {}", reviewId);
-        reviewService.deleteReview(reviewId);
+        reviewService.deleteReview(reviewId, authenticatedUserId);
         return ResponseEntity.noContent().build();
     }
 
