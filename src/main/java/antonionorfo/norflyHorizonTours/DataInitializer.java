@@ -17,6 +17,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+
         try {
             countryService.populateCountries();
         } catch (Exception e) {
@@ -29,14 +30,16 @@ public class DataInitializer implements CommandLineRunner {
             System.err.println("Errore durante il popolamento delle città: " + e.getMessage());
         }
 
+
         if (!excursionService.isExcursionsPopulated()) {
             try {
+
                 excursionService.generateExcursionsForCities();
             } catch (Exception e) {
                 System.err.println("Errore durante la generazione delle escursioni: " + e.getMessage());
             }
         } else {
-            System.out.println("Il database è già popolato con le escursioni");
+            System.out.println("Il database è già popolato con le escursioni.");
         }
     }
 }

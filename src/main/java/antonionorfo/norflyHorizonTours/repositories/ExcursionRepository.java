@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -48,6 +49,10 @@ public interface ExcursionRepository extends JpaRepository<Excursion, UUID> {
     List<Excursion> findByCityNameAndPriceRange(@Param("cityName") String cityName,
                                                 @Param("minPrice") BigDecimal minPrice,
                                                 @Param("maxPrice") BigDecimal maxPrice);
+
+    @Query("SELECT e FROM Excursion e WHERE e.startDate >= :startDate AND e.endDate <= :endDate")
+    List<Excursion> findExcursionsByDateRange(@Param("startDate") LocalDateTime startDate,
+                                              @Param("endDate") LocalDateTime endDate);
 
     Page<Excursion> findAll(Pageable pageable);
 }

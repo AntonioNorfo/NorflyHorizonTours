@@ -58,9 +58,7 @@ public class BookingService {
         booking.setUser(user);
         booking.setExcursion(excursion);
 
-
         Booking savedBooking = bookingRepository.save(booking);
-
 
         availabilityDate.setRemainingSeats(availabilityDate.getRemainingSeats() - 1);
         availabilityDateRepository.save(availabilityDate);
@@ -125,8 +123,8 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
 
-        if (ChronoUnit.HOURS.between(LocalDate.now().atStartOfDay(), booking.getStartDate().atStartOfDay()) < 72) {
-            throw new BadRequestException("Cannot update booking within 72 hours of the excursion");
+        if (ChronoUnit.DAYS.between(LocalDate.now(), booking.getStartDate()) < 3) {
+            throw new BadRequestException("Cannot update booking within 3 days of the excursion");
         }
 
         if (updatedBooking.startDate() != null) {
@@ -153,9 +151,11 @@ public class BookingService {
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
 
         return availabilityDateRepository.findByExcursionAndIsBookedFalse(excursion).stream()
-                .map(AvailabilityDate::getDateAvailable)
+                .map(availabilityDate -> availabilityDate.getDateAvailable().toLocalDate())
+                .distinct()
                 .collect(Collectors.toList());
     }
+
 
     private BookingDTO mapToDTO(Booking booking) {
         return new BookingDTO(

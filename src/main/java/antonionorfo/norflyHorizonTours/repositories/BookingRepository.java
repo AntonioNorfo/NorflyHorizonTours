@@ -15,5 +15,7 @@ public interface BookingRepository extends JpaRepository<Booking, UUID> {
 
     long countByExcursion(Excursion excursion);
 
+    long countByExcursion_ExcursionId(UUID excursionId);
+
 
 }

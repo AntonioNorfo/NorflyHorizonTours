@@ -6,10 +6,12 @@ import antonionorfo.norflyHorizonTours.exception.BadRequestException;
 import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.repositories.AvailabilityDateRepository;
 import antonionorfo.norflyHorizonTours.repositories.ExcursionRepository;
+import com.github.javafaker.Faker;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -17,29 +19,40 @@ import java.util.stream.Collectors;
 @Service
 public class AvailabilityService {
 
+    private final Faker faker = new Faker();
     @Autowired
     private AvailabilityDateRepository availabilityDateRepository;
-
     @Autowired
     private ExcursionRepository excursionRepository;
 
-    public void generateDefaultAvailability(Excursion excursion) {
-        LocalDate today = LocalDate.now();
-        LocalDate sixMonthsFromNow = today.plusMonths(6);
+    private void generateDefaultAvailability(Excursion excursion) {
+        LocalDateTime startDate = LocalDateTime.now();
+        LocalDateTime endDate = startDate.plusMonths(6);
 
-        List<AvailabilityDate> availabilityDates = today.datesUntil(sixMonthsFromNow)
-                .map(date -> {
-                    AvailabilityDate availabilityDate = new AvailabilityDate();
-                    availabilityDate.setDateAvailable(date);
-                    availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
-                    availabilityDate.setIsBooked(false);
-                    availabilityDate.setExcursion(excursion);
-                    return availabilityDate;
-                })
-                .collect(Collectors.toList());
+        if (excursion.getDuration().matches("\\d+ hours")) {
 
-        availabilityDateRepository.saveAll(availabilityDates);
+            for (LocalDateTime date = startDate; date.isBefore(endDate); date = date.plusDays(1)) {
+                AvailabilityDate availabilityDate = new AvailabilityDate();
+                availabilityDate.setExcursion(excursion);
+                availabilityDate.setDateAvailable(date.withHour(faker.number().numberBetween(8, 20))
+                        .withMinute(0));
+                availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
+                availabilityDate.setIsBooked(false);
+                availabilityDateRepository.save(availabilityDate);
+            }
+        } else {
+
+            for (LocalDateTime date = startDate; date.isBefore(endDate); date = date.plusDays(1)) {
+                AvailabilityDate availabilityDate = new AvailabilityDate();
+                availabilityDate.setExcursion(excursion);
+                availabilityDate.setDateAvailable(date.toLocalDate().atStartOfDay());
+                availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
+                availabilityDate.setIsBooked(false);
+                availabilityDateRepository.save(availabilityDate);
+            }
+        }
     }
+
 
     public int getExcursionAvailability(UUID excursionId, LocalDate date) {
         Excursion excursion = excursionRepository.findById(excursionId)
@@ -55,9 +68,11 @@ public class AvailabilityService {
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
 
         return availabilityDateRepository.findByExcursionAndIsBookedFalse(excursion).stream()
-                .map(AvailabilityDate::getDateAvailable)
+                .map(availabilityDate -> availabilityDate.getDateAvailable().toLocalDate())
+                .distinct()
                 .collect(Collectors.toList());
     }
+
 
     public void bookSeats(UUID excursionId, LocalDate date, int numSeats) {
         Excursion excursion = excursionRepository.findById(excursionId)

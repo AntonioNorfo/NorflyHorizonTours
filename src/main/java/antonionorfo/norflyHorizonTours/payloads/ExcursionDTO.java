@@ -1,12 +1,11 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
 import antonionorfo.norflyHorizonTours.enums.DifficultyLevel;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public record ExcursionDTO(
@@ -42,6 +41,19 @@ public record ExcursionDTO(
         Integer maxParticipants,
 
         @NotNull(message = "City ID is required!")
-        UUID cityId
+        UUID cityId,
+
+        @NotNull(message = "Country ID is required!")
+        UUID countryId,
+
+        @NotNull(message = "Start date is required!")
+        LocalDateTime startDate,
+
+        @NotNull(message = "End date is required!")
+        @Future(message = "End date must be in the future!")
+        LocalDateTime endDate,
+
+        @NotNull(message = "Markers are required!")
+        List<String> markers
 ) {
 }

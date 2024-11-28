@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -19,11 +19,21 @@ public class AvailabilityDate {
     @GeneratedValue
     private UUID availabilityId;
 
-    private LocalDate dateAvailable;
+    private LocalDateTime dateAvailable;
+
     private Integer remainingSeats;
+
     private Boolean isBooked;
 
     @ManyToOne
     @JoinColumn(name = "excursion_id")
     private Excursion excursion;
+
+    @PrePersist
+    @PreUpdate
+    private void validateDateAvailability() {
+        if (dateAvailable.isBefore(excursion.getStartDate()) || dateAvailable.isAfter(excursion.getEndDate())) {
+            throw new IllegalArgumentException("La disponibilità deve essere compresa tra la data di inizio e fine dell'escursione.");
+        }
+    }
 }

@@ -128,7 +128,11 @@ public class AdminService {
                 excursion.getRules(),
                 excursion.getNotRecommended() != null ? excursion.getNotRecommended() : "",
                 excursion.getMaxParticipants(),
-                excursion.getCity().getId()
+                excursion.getCity() != null ? excursion.getCity().getId() : null,
+                excursion.getCountry() != null ? excursion.getCountry().getId() : null,
+                excursion.getStartDate(),
+                excursion.getEndDate(),
+                excursion.getMarkers()
         );
     }
 

@@ -20,8 +20,9 @@ public class Cart {
     private UUID cartId;
 
     private LocalDateTime dateAddedCart;
+    private Integer quantity;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 

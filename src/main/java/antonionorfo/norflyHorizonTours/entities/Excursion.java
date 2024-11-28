@@ -7,6 +7,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -43,6 +45,30 @@ public class Excursion {
     @ManyToOne
     @JoinColumn(name = "city_id")
     private City city;
+
+    @ManyToOne
+    @JoinColumn(name = "country_id")
+    private Country country;
+
+    private LocalDateTime startDate;
+
+    private LocalDateTime endDate;
+
+    @ElementCollection
+    @CollectionTable(name = "excursion_markers", joinColumns = @JoinColumn(name = "excursion_id"))
+    @Column(name = "marker")
+    private List<String> markers;
+
+    @PrePersist
+    @PreUpdate
+    private void ensureDatesAreNotNull() {
+        if (startDate == null) {
+            startDate = LocalDateTime.now();
+        }
+        if (endDate == null) {
+            endDate = startDate.plusDays(1);
+        }
+    }
 
     public String getDescriptionExcursion() {
         return descriptionExcursion;
