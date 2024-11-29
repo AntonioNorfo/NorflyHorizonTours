@@ -18,7 +18,7 @@ public class AuthService {
     private final JWT jwt;
 
     public String checkCredentialsAndGenerateToken(LoginRequestDTO loginRequest) {
-        User user = userRepository.findByUsername(loginRequest.username())
+        User user = userRepository.findByUsername(loginRequest.email())
                 .orElseThrow(() -> new UnauthorizedException("Credenziali errate!"));
 
         if (!passwordEncoder.matches(loginRequest.password(), user.getPassword())) {

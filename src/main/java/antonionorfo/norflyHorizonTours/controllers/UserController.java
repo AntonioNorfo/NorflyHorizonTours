@@ -53,7 +53,7 @@ public class UserController {
                         u.getUserId(),
                         u.getFirstName(),
                         u.getLastName(),
-                        u.getUsername(),
+                        null,
                         u.getEmail(),
                         u.getProfilePhotoUrl(),
                         u.getRole(),
@@ -61,21 +61,6 @@ public class UserController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/username")
-    public ResponseEntity<UserDTO> findByUsername(@RequestParam String username) {
-        logger.info("Fetching user by username: {}", username);
-        Optional<User> user = userService.findByUsername(username);
-        return user.map(u -> ResponseEntity.ok(new UserDTO(
-                        u.getUserId(),
-                        u.getFirstName(),
-                        u.getLastName(),
-                        u.getUsername(),
-                        u.getEmail(),
-                        u.getProfilePhotoUrl(),
-                        u.getRole(),
-                        null)))
-                .orElse(ResponseEntity.notFound().build());
-    }
 
     @PutMapping("/{userId}")
     public ResponseEntity<UserDTO> updateUser(
