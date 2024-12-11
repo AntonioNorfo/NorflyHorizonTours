@@ -1,15 +1,20 @@
 package antonionorfo.norflyHorizonTours.services;
 
-import antonionorfo.norflyHorizonTours.entities.Booking;
-import antonionorfo.norflyHorizonTours.entities.Payment;
+import antonionorfo.norflyHorizonTours.entities.*;
 import antonionorfo.norflyHorizonTours.enums.PaymentStatus;
+import antonionorfo.norflyHorizonTours.exception.BadRequestException;
 import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.payloads.PaymentDTO;
+import antonionorfo.norflyHorizonTours.payloads.PaymentRequestDTO;
 import antonionorfo.norflyHorizonTours.repositories.BookingRepository;
+import antonionorfo.norflyHorizonTours.repositories.CartRepository;
 import antonionorfo.norflyHorizonTours.repositories.PaymentRepository;
+import antonionorfo.norflyHorizonTours.repositories.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -21,62 +26,103 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
+    private final CartRepository cartRepository;
+    private final UserRepository userRepository;
 
-    public PaymentDTO createPayment(PaymentDTO paymentDTO) {
-        Booking booking = bookingRepository.findById(paymentDTO.bookingId())
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+    @Transactional
+    public PaymentDTO createPayment(UUID userId, PaymentRequestDTO paymentRequest) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Cart cart = cartRepository.findById(paymentRequest.cartId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
+
+        if (!cart.getUser().getUserId().equals(userId)) {
+            throw new BadRequestException("The cart does not belong to the user.");
+        }
+
+        BigDecimal totalAmount = cart.getItems().stream()
+                .map(CartItem::calculatePrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalAmount.compareTo(paymentRequest.amountPayment()) != 0) {
+            throw new BadRequestException("Payment amount does not match the cart total.");
+        }
 
         Payment payment = new Payment();
-        payment.setAmountPayment(paymentDTO.amountPayment());
+        payment.setAmountPayment(totalAmount);
         payment.setPaymentDate(LocalDateTime.now());
-        payment.setMethodPayment(paymentDTO.methodPayment());
-        payment.setStatusPayment(PaymentStatus.PENDING); // Default status
-        payment.setTransactionReference(paymentDTO.transactionReference());
-        payment.setBooking(booking);
+        payment.setMethodPayment(paymentRequest.methodPayment());
+        payment.setStatusPayment(PaymentStatus.SUCCESS);
+        payment.setTransactionReference(paymentRequest.transactionReference());
+        payment.setCart(cart);
+        payment.setUser(user);
 
-        Payment savedPayment = paymentRepository.save(payment);
+        paymentRepository.save(payment);
 
-        return mapToDTO(savedPayment);
+        return mapToDTO(payment);
+    }
+
+    @Transactional
+    public void finalizePayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
+
+        Cart cart = payment.getCart();
+        if (cart == null || cart.getItems().isEmpty()) {
+            throw new BadRequestException("Cart is empty or not linked to the payment.");
+        }
+
+        for (CartItem item : cart.getItems()) {
+            Booking booking = new Booking();
+            booking.setBookingDate(LocalDateTime.now());
+            booking.setStartDate(item.getAvailabilityDate().getDateAvailable());
+            booking.setEndDate(item.getAvailabilityDate().getDateAvailable().plusHours(item.getExcursion().getDurationInHours()));
+            booking.setStatusOfBooking("CONFIRMED");
+            booking.setNumSeats(item.getQuantity());
+            booking.setUser(payment.getUser());
+            booking.setExcursion(item.getExcursion());
+
+            bookingRepository.save(booking);
+        }
+
+        cartRepository.delete(cart);
     }
 
     public PaymentDTO getPaymentById(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-
         return mapToDTO(payment);
     }
 
     public List<PaymentDTO> getPaymentsByUser(UUID userId) {
-        List<Payment> payments = paymentRepository.findAll().stream()
-                .filter(payment -> payment.getBooking().getUser().getUserId().equals(userId))
+        return paymentRepository.findAll().stream()
+                .filter(payment -> payment.getUser().getUserId().equals(userId))
+                .map(this::mapToDTO)
                 .collect(Collectors.toList());
-
-        return payments.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
     public List<PaymentDTO> getPaymentsByBooking(UUID bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
-
-        List<Payment> payments = paymentRepository.findAll().stream()
-                .filter(payment -> payment.getBooking().equals(booking))
+        return paymentRepository.findAll().stream()
+                .filter(payment -> payment.getCart() != null && payment.getCart().getItems().stream()
+                        .anyMatch(item -> item.getExcursion().getExcursionId().equals(bookingId)))
+                .map(this::mapToDTO)
                 .collect(Collectors.toList());
-
-        return payments.stream().map(this::mapToDTO).collect(Collectors.toList());
     }
 
+    @Transactional
     public PaymentDTO refundPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
 
         if (payment.getStatusPayment() != PaymentStatus.SUCCESS) {
-            throw new IllegalArgumentException("Only successful payments can be refunded");
+            throw new BadRequestException("Only successful payments can be refunded");
         }
 
-        payment.setStatusPayment(PaymentStatus.FAILED); // Simulate refund (could be a separate status)
-        Payment updatedPayment = paymentRepository.save(payment);
+        payment.setStatusPayment(PaymentStatus.FAILED);
+        Payment refundedPayment = paymentRepository.save(payment);
 
-        return mapToDTO(updatedPayment);
+        return mapToDTO(refundedPayment);
     }
 
     private PaymentDTO mapToDTO(Payment payment) {
@@ -87,7 +133,8 @@ public class PaymentService {
                 payment.getMethodPayment(),
                 payment.getStatusPayment(),
                 payment.getTransactionReference(),
-                payment.getBooking().getBookingId()
+                payment.getCart().getCartId(),
+                payment.getUser().getUserId()
         );
     }
 }

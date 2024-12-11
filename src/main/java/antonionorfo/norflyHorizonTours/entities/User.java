@@ -2,7 +2,6 @@ package antonionorfo.norflyHorizonTours.entities;
 
 import antonionorfo.norflyHorizonTours.enums.Role;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -18,7 +17,6 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "app_user")
 public class User implements UserDetails {
 
@@ -44,14 +42,21 @@ public class User implements UserDetails {
     private boolean isBlocked = false;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private Role role;
+
+    public User(String firstName, String lastName, String username, String email, String password) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.role = Role.USER;
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
-
 
     @Override
     public String getPassword() {
@@ -62,7 +67,7 @@ public class User implements UserDetails {
     public String getUsername() {
         return email;
     }
-    
+
     @Override
     public boolean isAccountNonExpired() {
         return true;

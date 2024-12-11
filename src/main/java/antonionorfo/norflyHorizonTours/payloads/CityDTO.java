@@ -17,10 +17,11 @@ public record CityDTO(
         UUID countryId,
 
         @NotEmpty(message = "City description is required!")
-        String descriptionCity,
+        String description,
 
         @NotEmpty(message = "Coordinates are required!")
-        String coordinates
+        String coordinates,
+
+        String code
 ) {
 }
-

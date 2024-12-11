@@ -5,10 +5,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.util.UUID;
 
 @Entity
+@Table(name = "city") // Specifica il nome della tabella nel DB
 @Getter
 @Setter
 @NoArgsConstructor
@@ -17,8 +19,10 @@ public class City {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
     private UUID id;
 
+    @Column(nullable = false)
     private String name;
 
     @ManyToOne
@@ -31,5 +35,3 @@ public class City {
 
     private String coordinates;
 }
-
-

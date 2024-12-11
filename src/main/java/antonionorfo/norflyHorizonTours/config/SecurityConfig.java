@@ -23,8 +23,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("Configuring security filter chain...");
         http.csrf().disable()
+                .cors() // Aggiungi questa riga
+                .and()
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 .and()
@@ -34,9 +35,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtCheckerFilter, UsernamePasswordAuthenticationFilter.class);
-        System.out.println("Security filter chain configured successfully.");
         return http.build();
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {

@@ -1,7 +1,8 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
 import jakarta.validation.constraints.NotNull;
-import java.time.LocalDate;
+
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record BookingCreateDTO(
@@ -11,10 +12,12 @@ public record BookingCreateDTO(
         @NotNull(message = "Excursion ID is required!")
         UUID excursionId,
 
-        @NotNull(message = "Start date is required!")
-        LocalDate startDate,
+        @NotNull(message = "Booking date and time is required!")
+        LocalDateTime bookingDateTime,
 
-        @NotNull(message = "End date is required!")
-        LocalDate endDate
+        @NotNull(message = "End date and time is required!")
+        LocalDateTime endDateTime,
+
+        int numSeats
 ) {
 }

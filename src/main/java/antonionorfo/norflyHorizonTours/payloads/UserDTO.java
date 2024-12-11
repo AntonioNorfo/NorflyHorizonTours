@@ -1,6 +1,7 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
 import antonionorfo.norflyHorizonTours.enums.Role;
+import antonionorfo.norflyHorizonTours.repositories.Update;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -29,7 +30,7 @@ public record UserDTO(
 
         String profilePhotoUrl,
 
-        @NotNull(message = "Role is required!")
+        @NotNull(message = "Role is required!", groups = Update.class)
         Role role,
 
         @NotEmpty(message = "Password is required!")

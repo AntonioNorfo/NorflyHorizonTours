@@ -32,8 +32,12 @@ public class AvailabilityDate {
     @PrePersist
     @PreUpdate
     private void validateDateAvailability() {
-        if (dateAvailable.isBefore(excursion.getStartDate()) || dateAvailable.isAfter(excursion.getEndDate())) {
-            throw new IllegalArgumentException("La disponibilità deve essere compresa tra la data di inizio e fine dell'escursione.");
+        if (remainingSeats < 0) {
+            throw new IllegalArgumentException("Il numero di posti rimanenti non può essere negativo.");
+        }
+
+        if (dateAvailable == null) {
+            throw new IllegalArgumentException("La data di disponibilità non può essere null.");
         }
     }
 }

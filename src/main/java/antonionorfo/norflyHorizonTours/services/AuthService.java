@@ -18,13 +18,13 @@ public class AuthService {
     private final JWT jwt;
 
     public String checkCredentialsAndGenerateToken(LoginRequestDTO loginRequest) {
-        User user = userRepository.findByUsername(loginRequest.email())
+        User user = userRepository.findByEmail(loginRequest.email())
+                .or(() -> userRepository.findByUsername(loginRequest.email()))
                 .orElseThrow(() -> new UnauthorizedException("Credenziali errate!"));
 
         if (!passwordEncoder.matches(loginRequest.password(), user.getPassword())) {
             throw new UnauthorizedException("Credenziali errate!");
         }
-
 
         return jwt.createToken(user);
     }

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class MailgunSender {
 
-    private static final Logger logger = LoggerFactory.getLogger(MailgunSender.class);
+    public static final Logger logger = LoggerFactory.getLogger(MailgunSender.class);
 
     private final String apiKey;
     private final String domain;

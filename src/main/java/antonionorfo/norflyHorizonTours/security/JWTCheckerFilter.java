@@ -51,9 +51,10 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             logger.warn("Missing or malformed Authorization header for path: {}", servletPath);
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Missing or malformed Authorization header");
+            response.getWriter().write("{\"error\":\"Missing or malformed Authorization header\"}");
             return;
         }
+
 
         String accessToken = authHeader.substring(7);
         try {
@@ -100,4 +101,5 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
         logger.debug("Should not filter? {} for path: {}", shouldSkip, servletPath);
         return shouldSkip;
     }
+
 }

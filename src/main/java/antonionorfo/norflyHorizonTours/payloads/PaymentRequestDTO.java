@@ -7,17 +7,15 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
-public record PaymentDTO(
-        UUID paymentId,
+public record PaymentRequestDTO(
+        @NotNull(message = "Cart ID is required!")
+        UUID cartId,
 
+        @NotNull(message = "Payment amount is required!")
         @Positive(message = "Payment amount must be positive!")
         BigDecimal amountPayment,
-
-        @NotNull(message = "Payment date is required!")
-        LocalDateTime paymentDate,
 
         @NotNull(message = "Payment method is required!")
         PaymentMethod methodPayment,
@@ -26,12 +24,6 @@ public record PaymentDTO(
         PaymentStatus statusPayment,
 
         @NotEmpty(message = "Transaction reference is required!")
-        String transactionReference,
-
-        @NotNull(message = "Cart ID is required!")
-        UUID cartId,
-
-        @NotNull(message = "User ID is required!")
-        UUID userId
+        String transactionReference
 ) {
 }

@@ -2,12 +2,10 @@ package antonionorfo.norflyHorizonTours.controllers;
 
 import antonionorfo.norflyHorizonTours.payloads.CartDTO;
 import antonionorfo.norflyHorizonTours.services.CartService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -18,32 +16,40 @@ public class CartController {
     private final CartService cartService;
 
     @GetMapping
-    public ResponseEntity<List<CartDTO>> getCart(@PathVariable UUID userId) {
-        return ResponseEntity.ok(cartService.getUserCart(userId));
+    public ResponseEntity<CartDTO> getUserCart(@PathVariable UUID userId) {
+        CartDTO cart = cartService.getUserCart(userId);
+        return ResponseEntity.ok(cart);
     }
 
-    @PostMapping
-    public ResponseEntity<CartDTO> addToCart(
+    @PostMapping("/items")
+    public ResponseEntity<CartDTO> addItemToCart(
             @PathVariable UUID userId,
-            @RequestBody @Valid CartDTO cartDTO
+            @RequestParam UUID excursionId,
+            @RequestParam UUID availabilityDateId,
+            @RequestParam Integer quantity
     ) {
-        return ResponseEntity.ok(cartService.addToCart(userId, cartDTO.excursionId(), cartDTO.quantity()));
+        CartDTO updatedCart = cartService.addToCart(userId, excursionId, availabilityDateId, quantity);
+        System.out.println("Cart updated: " + updatedCart);
+        return ResponseEntity.ok(updatedCart);
     }
 
 
-    @DeleteMapping("/{excursionId}")
-    public ResponseEntity<Void> removeFromCart(
+    @PatchMapping("/items/{cartItemId}")
+    public ResponseEntity<CartDTO> updateItemQuantity(
             @PathVariable UUID userId,
-            @PathVariable UUID excursionId
+            @PathVariable UUID cartItemId,
+            @RequestParam Integer newQuantity
     ) {
-        cartService.removeFromCart(userId, excursionId);
-        return ResponseEntity.noContent().build();
+        CartDTO updatedCart = cartService.updateCartItemQuantity(userId, cartItemId, newQuantity);
+        return ResponseEntity.ok(updatedCart);
     }
 
-    @PostMapping("/checkout")
-    public ResponseEntity<Void> checkoutCart(@PathVariable UUID userId) {
-        cartService.checkoutCart(userId);
+    @DeleteMapping("/items/{cartItemId}")
+    public ResponseEntity<Void> removeItemFromCart(
+            @PathVariable UUID userId,
+            @PathVariable UUID cartItemId
+    ) {
+        cartService.removeFromCart(userId, cartItemId);
         return ResponseEntity.noContent().build();
     }
 }
-

@@ -18,8 +18,9 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Payment {
+
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID paymentId;
 
     private BigDecimal amountPayment;
@@ -34,7 +35,11 @@ public class Payment {
     private String transactionReference;
 
     @OneToOne
-    @JoinColumn(name = "booking_id")
-    private Booking booking;
+    @JoinColumn(name = "cart_id")
+    private Cart cart;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
 }

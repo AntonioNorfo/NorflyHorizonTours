@@ -1,3 +1,9 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
-public record LoginResponseDTO(String accessToken) {}
+import java.util.UUID;
+
+public record LoginResponseDTO(
+        String accessToken,
+        UUID userId
+) {
+}

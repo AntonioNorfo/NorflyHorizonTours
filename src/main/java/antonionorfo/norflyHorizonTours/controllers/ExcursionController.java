@@ -7,12 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -95,14 +93,6 @@ public class ExcursionController {
     @GetMapping("/paginated")
     public ResponseEntity<Page<ExcursionDTO>> getAllExcursionsPaginated(@RequestParam int page, @RequestParam int size) {
         Page<ExcursionDTO> excursions = excursionService.getAllExcursionsPaginated(page, size);
-        return ResponseEntity.ok(excursions);
-    }
-
-    @GetMapping("/available")
-    public ResponseEntity<List<ExcursionDTO>> getAvailableExcursions(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-        List<ExcursionDTO> excursions = excursionService.findExcursionsByDateRange(startDate, endDate);
         return ResponseEntity.ok(excursions);
     }
 

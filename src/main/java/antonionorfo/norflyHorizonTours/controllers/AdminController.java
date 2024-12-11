@@ -74,9 +74,4 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    @PutMapping("/site/maintenance")
-    public ResponseEntity<Void> toggleMaintenanceMode(@RequestParam boolean enable) {
-        adminService.toggleMaintenanceMode(enable);
-        return ResponseEntity.noContent().build();
-    }
 }

@@ -5,6 +5,7 @@ import antonionorfo.norflyHorizonTours.enums.Role;
 import antonionorfo.norflyHorizonTours.exception.BadRequestException;
 import antonionorfo.norflyHorizonTours.exception.DuplicateResourceException;
 import antonionorfo.norflyHorizonTours.payloads.*;
+import antonionorfo.norflyHorizonTours.repositories.Create;
 import antonionorfo.norflyHorizonTours.repositories.UserRepository;
 import antonionorfo.norflyHorizonTours.services.AuthService;
 import antonionorfo.norflyHorizonTours.tools.MailgunSender;
@@ -29,12 +30,19 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponseDTO login(@RequestBody LoginRequestDTO body) {
-        return new LoginResponseDTO(authService.checkCredentialsAndGenerateToken(body));
+        var token = authService.checkCredentialsAndGenerateToken(body);
+        var user = userRepository.findByEmail(body.email())
+                .orElseThrow(() -> new BadRequestException("User not found"));
+
+        var response = new LoginResponseDTO(token, user.getUserId());
+        System.out.println("Response: " + response);
+        return response;
     }
+
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponseDTO register(@RequestBody @Validated UserDTO body, BindingResult validationResult) {
+    public UserResponseDTO register(@RequestBody @Validated(Create.class) UserDTO body, BindingResult validationResult) {
         if (validationResult.hasErrors()) {
             String message = validationResult.getAllErrors().stream()
                     .map(objectError -> objectError.getDefaultMessage())

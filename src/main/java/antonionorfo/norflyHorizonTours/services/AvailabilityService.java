@@ -7,111 +7,162 @@ import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.repositories.AvailabilityDateRepository;
 import antonionorfo.norflyHorizonTours.repositories.ExcursionRepository;
 import com.github.javafaker.Faker;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static antonionorfo.norflyHorizonTours.tools.MailgunSender.logger;
+
 @Service
+@RequiredArgsConstructor
 public class AvailabilityService {
 
+    private final AvailabilityDateRepository availabilityDateRepository;
+    private final ExcursionRepository excursionRepository;
     private final Faker faker = new Faker();
-    @Autowired
-    private AvailabilityDateRepository availabilityDateRepository;
-    @Autowired
-    private ExcursionRepository excursionRepository;
 
-    private void generateDefaultAvailability(Excursion excursion) {
-        LocalDateTime startDate = LocalDateTime.now();
-        LocalDateTime endDate = startDate.plusMonths(6);
+    public void generateDefaultAvailabilityForExcursion(Excursion excursion) {
+        if (availabilityDateRepository.findByExcursion(excursion).isEmpty()) {
+            LocalDateTime startRange = LocalDateTime.now();
+            LocalDateTime endRange = startRange.plusYears(2);
 
-        if (excursion.getDuration().matches("\\d+ hours")) {
+            int occurrencesPerWeek = 3;
+            int totalWeeks = (int) (endRange.toLocalDate().toEpochDay() - startRange.toLocalDate().toEpochDay()) / 7;
+            int totalOccurrences = totalWeeks * occurrencesPerWeek;
 
-            for (LocalDateTime date = startDate; date.isBefore(endDate); date = date.plusDays(1)) {
-                AvailabilityDate availabilityDate = new AvailabilityDate();
-                availabilityDate.setExcursion(excursion);
-                availabilityDate.setDateAvailable(date.withHour(faker.number().numberBetween(8, 20))
-                        .withMinute(0));
-                availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
-                availabilityDate.setIsBooked(false);
-                availabilityDateRepository.save(availabilityDate);
+            if ("1 day".equalsIgnoreCase(excursion.getDuration())) {
+                generateDailyAvailability(excursion, startRange, endRange, totalOccurrences);
+            } else {
+                generateHourlyAvailability(excursion, startRange, endRange, totalOccurrences);
             }
         } else {
-
-            for (LocalDateTime date = startDate; date.isBefore(endDate); date = date.plusDays(1)) {
-                AvailabilityDate availabilityDate = new AvailabilityDate();
-                availabilityDate.setExcursion(excursion);
-                availabilityDate.setDateAvailable(date.toLocalDate().atStartOfDay());
-                availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
-                availabilityDate.setIsBooked(false);
-                availabilityDateRepository.save(availabilityDate);
-            }
+            logger.info("Disponibilità già presente per l'escursione con ID: {}", excursion.getExcursionId());
         }
     }
 
 
-    public int getExcursionAvailability(UUID excursionId, LocalDate date) {
-        Excursion excursion = excursionRepository.findById(excursionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
+    private void generateDailyAvailability(Excursion excursion, LocalDateTime startRange, LocalDateTime endRange, int totalOccurrences) {
+        validateDateRange(startRange, endRange);
 
-        return availabilityDateRepository.findByExcursionAndDateAvailable(excursion, date)
-                .map(AvailabilityDate::getRemainingSeats)
-                .orElse(0);
+        List<AvailabilityDate> availabilityDates = new ArrayList<>();
+        LocalDate currentDate = startRange.toLocalDate();
+
+        for (int i = 0; i < totalOccurrences; i++) {
+            LocalDate randomDay = currentDate.plusDays(faker.number().numberBetween(0, 7));
+            if (randomDay.isAfter(endRange.toLocalDate())) break;
+
+            AvailabilityDate availabilityDate = new AvailabilityDate();
+            availabilityDate.setExcursion(excursion);
+            availabilityDate.setDateAvailable(randomDay.atStartOfDay());
+            availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
+            availabilityDate.setIsBooked(false);
+
+            availabilityDates.add(availabilityDate);
+
+            if ((i + 1) % 3 == 0) {
+                currentDate = currentDate.plusWeeks(1);
+            }
+        }
+
+        availabilityDateRepository.saveAll(availabilityDates);
     }
 
-    public List<LocalDate> getAvailableDatesForExcursion(UUID excursionId) {
+    private void generateHourlyAvailability(Excursion excursion, LocalDateTime startRange, LocalDateTime endRange, int totalOccurrences) {
+        validateDateRange(startRange, endRange);
+
+        List<AvailabilityDate> availabilityDates = new ArrayList<>();
+        LocalDate currentDate = startRange.toLocalDate();
+
+        for (int i = 0; i < totalOccurrences; i++) {
+            LocalDate randomDay = currentDate.plusDays(faker.number().numberBetween(0, 7));
+            if (randomDay.isAfter(endRange.toLocalDate())) break;
+
+            int slotsPerDay = faker.number().numberBetween(2, 4);
+            for (int j = 0; j < slotsPerDay; j++) {
+                LocalDateTime randomTime = randomDay.atTime(faker.number().numberBetween(8, 20), 0);
+
+                AvailabilityDate availabilityDate = new AvailabilityDate();
+                availabilityDate.setExcursion(excursion);
+                availabilityDate.setDateAvailable(randomTime);
+                availabilityDate.setRemainingSeats(excursion.getMaxParticipants());
+                availabilityDate.setIsBooked(false);
+
+                availabilityDates.add(availabilityDate);
+            }
+
+            if ((i + 1) % 3 == 0) {
+                currentDate = currentDate.plusWeeks(1);
+            }
+        }
+
+        availabilityDateRepository.saveAll(availabilityDates);
+    }
+
+
+    public void generateAvailabilityForExcursion(UUID excursionId) {
+        Excursion excursion = excursionRepository.findById(excursionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Excursion not found with ID: " + excursionId));
+
+        generateDefaultAvailabilityForExcursion(excursion);
+    }
+
+
+    public List<LocalDateTime> getAvailableDates(UUID excursionId) {
         Excursion excursion = excursionRepository.findById(excursionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
 
-        return availabilityDateRepository.findByExcursionAndIsBookedFalse(excursion).stream()
-                .map(availabilityDate -> availabilityDate.getDateAvailable().toLocalDate())
-                .distinct()
+        List<AvailabilityDate> availabilityDates = availabilityDateRepository.findByExcursion(excursion);
+
+        return availabilityDates.stream()
+                .filter(availabilityDate -> !availabilityDate.getIsBooked() && availabilityDate.getRemainingSeats() > 0)
+                .map(AvailabilityDate::getDateAvailable)
                 .collect(Collectors.toList());
     }
 
 
-    public void bookSeats(UUID excursionId, LocalDate date, int numSeats) {
+    public int countAvailableSeats(UUID excursionId, LocalDateTime dateAvailable) {
         Excursion excursion = excursionRepository.findById(excursionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
 
-        AvailabilityDate availabilityDate = availabilityDateRepository.findByExcursionAndDateAvailable(excursion, date)
+        AvailabilityDate availabilityDate = availabilityDateRepository.findByExcursionAndDateAvailable(excursion, dateAvailable)
                 .orElseThrow(() -> new ResourceNotFoundException("Availability date not found"));
 
-        int remainingSeats = availabilityDate.getRemainingSeats();
-
-        if (remainingSeats >= numSeats) {
-
-            availabilityDate.setRemainingSeats(remainingSeats - numSeats);
-
-            if (availabilityDate.getRemainingSeats() == 0) {
-                availabilityDate.setIsBooked(true);
-            }
-
-            availabilityDateRepository.save(availabilityDate);
-        } else {
-            throw new BadRequestException("Not enough seats available.");
-        }
+        return availabilityDate.getRemainingSeats();
     }
 
-    public void cancelBooking(UUID excursionId, LocalDate date, int numSeats) {
+    public void updateAvailability(UUID excursionId, LocalDateTime dateTime, int seatsBooked) {
         Excursion excursion = excursionRepository.findById(excursionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Excursion not found"));
 
-        AvailabilityDate availabilityDate = availabilityDateRepository.findByExcursionAndDateAvailable(excursion, date)
+        AvailabilityDate availabilityDate = availabilityDateRepository.findByExcursionAndDateAvailable(excursion, dateTime)
                 .orElseThrow(() -> new ResourceNotFoundException("Availability date not found"));
 
-        int remainingSeats = availabilityDate.getRemainingSeats();
+        if (availabilityDate.getRemainingSeats() < seatsBooked) {
+            throw new BadRequestException("Not enough seats available");
+        }
 
-        availabilityDate.setRemainingSeats(remainingSeats + numSeats);
+        availabilityDate.setRemainingSeats(availabilityDate.getRemainingSeats() - seatsBooked);
 
-        if (availabilityDate.getRemainingSeats() > 0) {
-            availabilityDate.setIsBooked(false);
+        if (availabilityDate.getRemainingSeats() == 0) {
+            availabilityDate.setIsBooked(true);
         }
 
         availabilityDateRepository.save(availabilityDate);
+    }
+
+
+    /**
+     * Valida l'intervallo di date.
+     */
+    private void validateDateRange(LocalDateTime startRange, LocalDateTime endRange) {
+        if (startRange.isAfter(endRange)) {
+            throw new BadRequestException("Invalid date range.");
+        }
     }
 }

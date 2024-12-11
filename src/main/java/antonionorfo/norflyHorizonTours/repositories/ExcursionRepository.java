@@ -9,11 +9,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 public interface ExcursionRepository extends JpaRepository<Excursion, UUID> {
+
     List<Excursion> findByCity_Name(String cityName);
 
     @Query("SELECT e FROM Excursion e WHERE e.city.code = :cityCode")
@@ -37,7 +37,9 @@ public interface ExcursionRepository extends JpaRepository<Excursion, UUID> {
     @Query("SELECT e FROM Excursion e WHERE e.city.country.name = :countryName AND e.title LIKE '%National%'")
     List<Excursion> findNationalExcursionsByCountry(@Param("countryName") String countryName);
 
-    List<Excursion> findByCity(antonionorfo.norflyHorizonTours.entities.City city);
+    List<Excursion> findByCity_NameIgnoreCase(String cityName);
+
+    List<Excursion> findByCity(City city);
 
     @Query("SELECT e FROM Excursion e WHERE LOWER(e.city.name) = LOWER(:cityName)")
     List<Excursion> findByCityName(@Param("cityName") String cityName);
@@ -50,10 +52,15 @@ public interface ExcursionRepository extends JpaRepository<Excursion, UUID> {
                                                 @Param("minPrice") BigDecimal minPrice,
                                                 @Param("maxPrice") BigDecimal maxPrice);
 
-    @Query("SELECT e FROM Excursion e WHERE e.startDate >= :startDate AND e.endDate <= :endDate")
-    List<Excursion> findExcursionsByDateRange(@Param("startDate") LocalDateTime startDate,
-                                              @Param("endDate") LocalDateTime endDate);
+    @Query("SELECT COUNT(e) FROM Excursion e WHERE e.city IS NOT NULL")
+    long countByCityNotNull();
+
+    @Query("SELECT COUNT(e) FROM Excursion e WHERE e.city.country IS NOT NULL")
+    long countByCountryNotNull();
+
+    @Query("SELECT COUNT(e) FROM Excursion e WHERE e.city.country.region IS NOT NULL")
+    long countByRegionNotNull();
+
 
     Page<Excursion> findAll(Pageable pageable);
 }
-

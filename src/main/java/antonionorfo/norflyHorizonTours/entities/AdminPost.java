@@ -20,6 +20,7 @@ import java.util.UUID;
 public class AdminPost {
     @Id
     @GeneratedValue
+
     private UUID adminPostId;
 
     private String titlePost;

@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -17,12 +17,14 @@ import java.util.UUID;
 public class Booking {
     @Id
     @GeneratedValue
+
     private UUID bookingId;
 
-    private LocalDate bookingDate;
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private LocalDateTime bookingDate;
+    private LocalDateTime startDate;
+    private LocalDateTime endDate;
     private String statusOfBooking;
+    private Integer numSeats;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -32,3 +34,4 @@ public class Booking {
     @JoinColumn(name = "excursion_id")
     private Excursion excursion;
 }
+

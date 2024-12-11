@@ -4,14 +4,13 @@ import antonionorfo.norflyHorizonTours.entities.Country;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-@Repository
 public interface CountryRepository extends JpaRepository<Country, UUID> {
+
     boolean existsByName(String name);
 
     List<Country> findByRegionIgnoreCase(String region);
@@ -24,6 +23,12 @@ public interface CountryRepository extends JpaRepository<Country, UUID> {
 
     Optional<Country> findByCode(String code);
 
-    @Query("SELECT c FROM Country c WHERE c.region = :region")
+    boolean existsByCode(String code);
+
+    @Query("SELECT c FROM Country c WHERE LOWER(c.region) = LOWER(:region)")
     List<Country> findByRegion(@Param("region") String region);
+
+    @Query("SELECT DISTINCT c.region FROM Country c WHERE c.region IS NOT NULL")
+    List<String> findDistinctRegions();
+
 }

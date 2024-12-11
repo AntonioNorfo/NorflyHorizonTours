@@ -1,13 +1,14 @@
 package antonionorfo.norflyHorizonTours.tasks;
 
 import antonionorfo.norflyHorizonTours.repositories.BookingRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
 @Component
+@Slf4j
 public class BookingCleanupTask {
 
     private final BookingRepository bookingRepository;
@@ -16,16 +17,12 @@ public class BookingCleanupTask {
         this.bookingRepository = bookingRepository;
     }
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "0 0 * * * *") // Ogni ora
     public void cancelUnpaidBookings() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoffTime = LocalDateTime.now().minusHours(24);
 
-        bookingRepository.findAll().stream()
-                .filter(booking -> "PENDING".equals(booking.getStatusOfBooking()))
-                .filter(booking -> ChronoUnit.HOURS.between(booking.getBookingDate().atStartOfDay(), now) > 24)
-                .forEach(booking -> {
-                    bookingRepository.delete(booking);
-                    System.out.println("Deleted unpaid booking with ID: " + booking.getBookingId());
-                });
+        int deletedCount = bookingRepository.deleteByStatusAndBookingDateBefore("PENDING", cutoffTime);
+
+        log.info("Deleted {} unpaid bookings older than 24 hours.", deletedCount);
     }
 }

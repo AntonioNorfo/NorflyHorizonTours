@@ -3,7 +3,7 @@ package antonionorfo.norflyHorizonTours.payloads;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public record BookingDTO(
@@ -16,10 +16,12 @@ public record BookingDTO(
         UUID excursionId,
 
         @NotNull(message = "Booking date is required!")
-        LocalDate bookingDate,
+        LocalDateTime bookingDate,
 
-        LocalDate startDate,
-        LocalDate endDate,
+        LocalDateTime startDate,
+        LocalDateTime endDate,
+
+        Integer numSeats,
 
         @NotEmpty(message = "Booking status is required!")
         String statusOfBooking

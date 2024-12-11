@@ -3,16 +3,17 @@ package antonionorfo.norflyHorizonTours.entities;
 import antonionorfo.norflyHorizonTours.enums.DifficultyLevel;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class Excursion {
@@ -50,31 +51,24 @@ public class Excursion {
     @JoinColumn(name = "country_id")
     private Country country;
 
-    private LocalDateTime startDate;
-
-    private LocalDateTime endDate;
-
     @ElementCollection
     @CollectionTable(name = "excursion_markers", joinColumns = @JoinColumn(name = "excursion_id"))
     @Column(name = "marker")
     private List<String> markers;
 
-    @PrePersist
-    @PreUpdate
-    private void ensureDatesAreNotNull() {
-        if (startDate == null) {
-            startDate = LocalDateTime.now();
+    public int getDurationInHours() {
+        if (duration == null || duration.isEmpty()) {
+            throw new IllegalArgumentException("Duration is not set or invalid.");
         }
-        if (endDate == null) {
-            endDate = startDate.plusDays(1);
+
+        if (duration.contains("hour")) {
+            return Integer.parseInt(duration.split(" ")[0]);
+        } else if (duration.contains("day")) {
+            return Integer.parseInt(duration.split(" ")[0]) * 24;
         }
+
+        throw new IllegalArgumentException("Unsupported duration format: " + duration);
     }
 
-    public String getDescriptionExcursion() {
-        return descriptionExcursion;
-    }
-
-    public void setDescriptionExcursion(String descriptionExcursion) {
-        this.descriptionExcursion = descriptionExcursion;
-    }
 }
+

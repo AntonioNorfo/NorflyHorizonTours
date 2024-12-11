@@ -23,7 +23,6 @@ public class AdminService {
     private final ReviewRepository reviewRepository;
     private final CityRepository cityRepository;
 
-
     public ExcursionDTO createExcursion(ExcursionDTO excursionDTO) {
         City city = cityRepository.findById(excursionDTO.cityId())
                 .orElseThrow(() -> new ResourceNotFoundException("Città non trovata con ID: " + excursionDTO.cityId()));
@@ -44,7 +43,6 @@ public class AdminService {
 
         return mapToExcursionDTO(excursion);
     }
-
 
     public ExcursionDTO updateExcursion(UUID excursionId, ExcursionDTO excursionDTO) {
         Excursion excursion = excursionRepository.findById(excursionId)
@@ -73,7 +71,6 @@ public class AdminService {
         user.setBlocked(true);
         userRepository.save(user);
     }
-
 
     public AdminPostDTO createPost(AdminPostDTO adminPostDTO) {
         AdminPost post = new AdminPost();
@@ -112,10 +109,6 @@ public class AdminService {
         reviewRepository.saveAll(reviews);
     }
 
-    public void toggleMaintenanceMode(boolean enable) {
-
-    }
-
     private ExcursionDTO mapToExcursionDTO(Excursion excursion) {
         return new ExcursionDTO(
                 excursion.getExcursionId(),
@@ -130,12 +123,9 @@ public class AdminService {
                 excursion.getMaxParticipants(),
                 excursion.getCity() != null ? excursion.getCity().getId() : null,
                 excursion.getCountry() != null ? excursion.getCountry().getId() : null,
-                excursion.getStartDate(),
-                excursion.getEndDate(),
                 excursion.getMarkers()
         );
     }
-
 
     private BookingDTO mapToBookingDTO(Booking booking) {
         return new BookingDTO(
@@ -145,6 +135,7 @@ public class AdminService {
                 booking.getBookingDate(),
                 booking.getStartDate(),
                 booking.getEndDate(),
+                booking.getNumSeats(),
                 booking.getStatusOfBooking()
         );
     }
