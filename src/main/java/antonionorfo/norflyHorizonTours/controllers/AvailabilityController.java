@@ -107,7 +107,7 @@ public class AvailabilityController {
     @PostMapping("/generate-for-all")
     public ResponseEntity<String> generateAvailabilityForAllExcursions() {
         logger.info("Generazione delle disponibilità per tutte le escursioni...");
-        int pageSize = 100; // Numero di escursioni da elaborare per pagina
+        int pageSize = 100;
         int pageNumber = 0;
         long totalProcessed = 0;
 

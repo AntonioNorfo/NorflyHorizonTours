@@ -166,10 +166,6 @@ public class AvailabilityService {
         availabilityDateRepository.save(availabilityDate);
     }
 
-
-    /**
-     * Valida l'intervallo di date.
-     */
     private void validateDateRange(LocalDateTime startRange, LocalDateTime endRange) {
         if (startRange.isAfter(endRange)) {
             throw new BadRequestException("Invalid date range.");

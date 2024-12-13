@@ -25,7 +25,6 @@ public class ReviewService {
     private final ExcursionRepository excursionRepository;
 
     public ReviewDTO addReview(ReviewDTO reviewDTO) {
-        // Verifica che l'utente esista
         User user = userRepository.findById(reviewDTO.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
 

@@ -75,13 +75,11 @@ public class CountryService {
         String urlByName = String.format("https://restcountries.com/v3.1/name/%s", countryName);
 
         try {
-            // Attempt with country code
             List<Map<String, Object>> response = restTemplate.getForObject(urlByCode, List.class);
             if (response != null && !response.isEmpty()) {
                 return parseCountryDetails(response.get(0));
             }
 
-            // Fallback to country name
             logger.warn("No details found for country code: {}. Trying with name: {}", countryCode, countryName);
             response = restTemplate.getForObject(urlByName, List.class);
             if (response != null && !response.isEmpty()) {

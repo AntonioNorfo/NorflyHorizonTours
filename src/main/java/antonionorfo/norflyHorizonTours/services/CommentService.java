@@ -88,7 +88,6 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
 
-        // Check if user is the author of the comment or an admin
         if (!comment.getUser().getUserId().equals(userId) && !user.getRole().equals(Role.ADMIN)) {
             throw new SecurityException("You are not authorized to perform this action.");
         }

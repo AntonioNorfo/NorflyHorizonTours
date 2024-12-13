@@ -10,7 +10,7 @@ import org.hibernate.annotations.GenericGenerator;
 import java.util.UUID;
 
 @Entity
-@Table(name = "city") // Specifica il nome della tabella nel DB
+@Table(name = "city")
 @Getter
 @Setter
 @NoArgsConstructor

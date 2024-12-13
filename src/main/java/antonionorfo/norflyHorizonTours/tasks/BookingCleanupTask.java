@@ -17,7 +17,7 @@ public class BookingCleanupTask {
         this.bookingRepository = bookingRepository;
     }
 
-    @Scheduled(cron = "0 0 * * * *") // Ogni ora
+    @Scheduled(cron = "0 0 * * * *") //
     public void cancelUnpaidBookings() {
         LocalDateTime cutoffTime = LocalDateTime.now().minusHours(24);
 
