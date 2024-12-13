@@ -7,6 +7,7 @@ import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.repositories.AvailabilityDateRepository;
 import antonionorfo.norflyHorizonTours.repositories.ExcursionRepository;
 import com.github.javafaker.Faker;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,22 +28,31 @@ public class AvailabilityService {
     private final ExcursionRepository excursionRepository;
     private final Faker faker = new Faker();
 
+    @Transactional
     public void generateDefaultAvailabilityForExcursion(Excursion excursion) {
-        if (availabilityDateRepository.findByExcursion(excursion).isEmpty()) {
-            LocalDateTime startRange = LocalDateTime.now();
-            LocalDateTime endRange = startRange.plusYears(2);
+        logger.info("Inizio generazione disponibilità per l'escursione: {}", excursion.getTitle());
 
-            int occurrencesPerWeek = 3;
-            int totalWeeks = (int) (endRange.toLocalDate().toEpochDay() - startRange.toLocalDate().toEpochDay()) / 7;
-            int totalOccurrences = totalWeeks * occurrencesPerWeek;
+        try {
+            if (availabilityDateRepository.findByExcursion(excursion).isEmpty()) {
+                LocalDateTime startRange = LocalDateTime.now();
+                LocalDateTime endRange = startRange.plusYears(1);
 
-            if ("1 day".equalsIgnoreCase(excursion.getDuration())) {
-                generateDailyAvailability(excursion, startRange, endRange, totalOccurrences);
+                int occurrencesPerWeek = 3;
+                int totalWeeks = (int) (endRange.toLocalDate().toEpochDay() - startRange.toLocalDate().toEpochDay()) / 7;
+                int totalOccurrences = totalWeeks * occurrencesPerWeek;
+
+                if ("1 day".equalsIgnoreCase(excursion.getDuration())) {
+                    generateDailyAvailability(excursion, startRange, endRange, totalOccurrences);
+                } else {
+                    generateHourlyAvailability(excursion, startRange, endRange, totalOccurrences);
+                }
+
+                logger.info("Disponibilità generata con successo per l'escursione: {}", excursion.getTitle());
             } else {
-                generateHourlyAvailability(excursion, startRange, endRange, totalOccurrences);
+                logger.info("Disponibilità già presente per l'escursione con ID: {}", excursion.getExcursionId());
             }
-        } else {
-            logger.info("Disponibilità già presente per l'escursione con ID: {}", excursion.getExcursionId());
+        } catch (Exception e) {
+            logger.error("Errore nella generazione delle disponibilità per l'escursione con ID: {}", excursion.getExcursionId(), e);
         }
     }
 

@@ -1,7 +1,11 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
 
+import antonionorfo.norflyHorizonTours.entities.AvailabilityDate;
 import antonionorfo.norflyHorizonTours.entities.Excursion;
+import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
+import antonionorfo.norflyHorizonTours.payloads.AvailabilityDateDTO;
+import antonionorfo.norflyHorizonTours.repositories.AvailabilityDateRepository;
 import antonionorfo.norflyHorizonTours.repositories.ExcursionRepository;
 import antonionorfo.norflyHorizonTours.services.AvailabilityService;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/availability")
@@ -24,14 +29,28 @@ public class AvailabilityController {
 
     private static final Logger logger = LoggerFactory.getLogger(AvailabilityController.class);
     private final AvailabilityService availabilityService;
+    private final AvailabilityDateRepository availabilityDateRepository;
     @Autowired
     private ExcursionRepository excursionRepository;
 
     @GetMapping("/excursion/{excursionId}/dates")
-    public ResponseEntity<List<LocalDateTime>> getAvailableDatesForExcursion(@PathVariable UUID excursionId) {
+    public ResponseEntity<List<AvailabilityDateDTO>> getAvailableDatesForExcursion(@PathVariable UUID excursionId) {
         logger.info("Fetching available dates for excursion: {}", excursionId);
         try {
-            List<LocalDateTime> availableDates = availabilityService.getAvailableDates(excursionId);
+            List<AvailabilityDate> availabilityDates = availabilityDateRepository.findByExcursion(excursionRepository.findById(excursionId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Excursion not found")));
+
+            List<AvailabilityDateDTO> availableDates = availabilityDates.stream()
+                    .filter(date -> !date.getIsBooked() && date.getRemainingSeats() > 0)
+                    .map(date -> new AvailabilityDateDTO(
+                            date.getAvailabilityId(),
+                            date.getDateAvailable(),
+                            date.getRemainingSeats(),
+                            date.getIsBooked(),
+                            date.getExcursion().getExcursionId()
+                    ))
+                    .collect(Collectors.toList());
+
             logger.info("Available dates for excursion {}: {}", excursionId, availableDates);
             return ResponseEntity.ok(availableDates);
         } catch (Exception e) {
@@ -39,6 +58,7 @@ public class AvailabilityController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
 
     @GetMapping("/excursion/{excursionId}/availability")
     public ResponseEntity<Integer> getAvailableSeats(

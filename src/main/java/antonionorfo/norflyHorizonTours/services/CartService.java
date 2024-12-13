@@ -15,6 +15,8 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static antonionorfo.norflyHorizonTours.tools.MailgunSender.logger;
+
 @Service
 @RequiredArgsConstructor
 public class CartService {
@@ -43,39 +45,55 @@ public class CartService {
     @Transactional
     public CartDTO addToCart(UUID userId, UUID excursionId, UUID availabilityDateId, Integer quantity) {
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
-        System.out.println("User found: " + user.getUserId());
+        logger.info("Attempting to add item to cart. User ID: {}, Excursion ID: {}, AvailabilityDate ID: {}, Quantity: {}",
+                userId, excursionId, availabilityDateId, quantity);
 
-        Excursion excursion = excursionRepository.findById(excursionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Excursion not found with ID: " + excursionId));
-        System.out.println("Excursion found: " + excursion.getExcursionId());
-
-        if (quantity <= 0) {
+        if (quantity == null || quantity <= 0) {
+            logger.error("Invalid quantity: {}. Quantity must be greater than zero.", quantity);
             throw new BadRequestException("Quantity must be greater than zero.");
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> {
+                    logger.error("User not found with ID: {}", userId);
+                    return new ResourceNotFoundException("User not found with ID: " + userId);
+                });
+        logger.debug("User retrieved: {}", user.getUserId());
+
+        Excursion excursion = excursionRepository.findById(excursionId)
+                .orElseThrow(() -> {
+                    logger.error("Excursion not found with ID: {}", excursionId);
+                    return new ResourceNotFoundException("Excursion not found with ID: " + excursionId);
+                });
+        logger.debug("Excursion retrieved: {}", excursion.getExcursionId());
+
         AvailabilityDate availabilityDate = availabilityDateRepository.findById(availabilityDateId)
-                .orElseThrow(() -> new ResourceNotFoundException("Availability date not found with ID: " + availabilityDateId));
-        System.out.println("Availability date found: " + availabilityDate.getAvailabilityId());
+                .orElseThrow(() -> {
+                    logger.error("Availability date not found with ID: {}", availabilityDateId);
+                    return new ResourceNotFoundException("Availability date not found with ID: " + availabilityDateId);
+                });
+        logger.debug("AvailabilityDate retrieved: {}", availabilityDate.getAvailabilityId());
 
         if (!availabilityDate.getExcursion().getExcursionId().equals(excursionId)) {
+            logger.error("Mismatch: AvailabilityDate {} does not belong to Excursion {}",
+                    availabilityDateId, excursionId);
             throw new BadRequestException("The selected availability date does not belong to the specified excursion.");
         }
 
         if (availabilityDate.getRemainingSeats() < quantity) {
+            logger.error("Not enough available seats. Requested: {}, Remaining: {}",
+                    quantity, availabilityDate.getRemainingSeats());
             throw new BadRequestException("Not enough available seats for the selected date.");
         }
 
-        Cart cart = cartRepository.findByUser(user)
-                .orElseGet(() -> {
-                    Cart newCart = new Cart();
-                    newCart.setUser(user);
-                    newCart.setDateAddedCart(LocalDateTime.now());
-                    cartRepository.save(newCart);
-                    System.out.println("New cart created for user: " + userId);
-                    return newCart;
-                });
+        Cart cart = cartRepository.findByUser(user).orElseGet(() -> {
+            Cart newCart = new Cart();
+            newCart.setUser(user);
+            newCart.setDateAddedCart(LocalDateTime.now());
+            cartRepository.save(newCart);
+            logger.info("New cart created for user: {}", userId);
+            return newCart;
+        });
 
         CartItem existingItem = cart.getItems().stream()
                 .filter(item -> item.getExcursion().getExcursionId().equals(excursionId)
@@ -84,10 +102,12 @@ public class CartService {
                 .orElse(null);
 
         if (existingItem != null) {
-            existingItem.setQuantity(existingItem.getQuantity() + quantity);
-            existingItem.setPrice(existingItem.calculatePrice());
+            int newQuantity = existingItem.getQuantity() + quantity;
+            existingItem.setQuantity(newQuantity);
+            existingItem.setPrice(existingItem.getExcursion().getPrice().multiply(BigDecimal.valueOf(newQuantity)));
             cartItemRepository.save(existingItem);
-            System.out.println("Updated item in cart: " + existingItem.getCartItemId());
+            logger.info("Updated existing cart item. CartItem ID: {}, New Quantity: {}",
+                    existingItem.getCartItemId(), newQuantity);
         } else {
             CartItem newItem = new CartItem();
             newItem.setCart(cart);
@@ -97,14 +117,20 @@ public class CartService {
             newItem.setPrice(excursion.getPrice().multiply(BigDecimal.valueOf(quantity)));
             cart.getItems().add(newItem);
             cartItemRepository.save(newItem);
-            System.out.println("Added new item to cart: " + newItem.getCartItemId());
+            logger.info("Added new item to cart. CartItem ID: {}, Quantity: {}",
+                    newItem.getCartItemId(), quantity);
         }
 
         availabilityDate.setRemainingSeats(availabilityDate.getRemainingSeats() - quantity);
         availabilityDateRepository.save(availabilityDate);
-        System.out.println("Updated availability date remaining seats: " + availabilityDate.getRemainingSeats());
+        logger.info("Updated remaining seats for AvailabilityDate {}. Remaining Seats: {}",
+                availabilityDateId, availabilityDate.getRemainingSeats());
 
-        return mapToCartDTO(cart);
+        CartDTO cartDTO = mapToCartDTO(cart);
+        logger.debug("Cart updated successfully. Cart ID: {}, Total Items: {}",
+                cart.getCartId(), cart.getItems().size());
+
+        return cartDTO;
     }
 
 

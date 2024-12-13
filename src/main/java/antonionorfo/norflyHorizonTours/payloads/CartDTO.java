@@ -1,8 +1,8 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,8 +19,7 @@ public record CartDTO(
         @NotNull(message = "Date added to cart is required!")
         LocalDateTime dateAddedCart,
 
-        @NotNull(message = "Items list cannot be null!")
-        @Size(min = 1, message = "Cart must contain at least one item!")
+        @NotEmpty(message = "Items list cannot be empty! Please add at least one item.")
         List<CartItemDTO> items,
 
         @NotNull(message = "Total amount is required!")
@@ -28,4 +27,3 @@ public record CartDTO(
         BigDecimal totalAmount
 ) {
 }
-
