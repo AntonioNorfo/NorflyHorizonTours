@@ -12,9 +12,12 @@ import antonionorfo.norflyHorizonTours.repositories.PaymentRepository;
 import antonionorfo.norflyHorizonTours.repositories.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -24,30 +27,35 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PaymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
     private final CartRepository cartRepository;
     private final UserRepository userRepository;
 
     @Transactional
-    public PaymentDTO createPayment(UUID userId, PaymentRequestDTO paymentRequest) {
+    public PaymentDTO createPayment(UUID userId, PaymentRequestDTO paymentRequest, List<UUID> selectedItemIds) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
+                .orElseThrow(() -> new ResourceNotFoundException("Utente non trovato"));
         Cart cart = cartRepository.findById(paymentRequest.cartId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Carrello non trovato"));
 
         if (!cart.getUser().getUserId().equals(userId)) {
-            throw new BadRequestException("The cart does not belong to the user.");
+            throw new BadRequestException("Il carrello non appartiene all'utente.");
         }
 
-        BigDecimal totalAmount = cart.getItems().stream()
+        List<CartItem> selectedItems = cart.getItems().stream()
+                .filter(item -> selectedItemIds.contains(item.getCartItemId()))
+                .collect(Collectors.toList());
+
+        if (selectedItems.isEmpty()) {
+            throw new BadRequestException("Nessun elemento selezionato per il pagamento.");
+        }
+
+        BigDecimal totalAmount = selectedItems.stream()
                 .map(CartItem::calculatePrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (totalAmount.compareTo(paymentRequest.amountPayment()) != 0) {
-            throw new BadRequestException("Payment amount does not match the cart total.");
-        }
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
 
         Payment payment = new Payment();
         payment.setAmountPayment(totalAmount);
@@ -60,8 +68,15 @@ public class PaymentService {
 
         paymentRepository.save(payment);
 
+
+        paymentRepository.save(payment);
+
+        cart.getItems().removeAll(selectedItems);
+        cartRepository.save(cart);
+
         return mapToDTO(payment);
     }
+
 
     @Transactional
     public void finalizePayment(UUID paymentId) {
@@ -126,6 +141,8 @@ public class PaymentService {
     }
 
     private PaymentDTO mapToDTO(Payment payment) {
+        UUID cartId = (payment.getCart() != null) ? payment.getCart().getCartId() : null;
+
         return new PaymentDTO(
                 payment.getPaymentId(),
                 payment.getAmountPayment(),
@@ -133,8 +150,9 @@ public class PaymentService {
                 payment.getMethodPayment(),
                 payment.getStatusPayment(),
                 payment.getTransactionReference(),
-                payment.getCart().getCartId(),
+                cartId,
                 payment.getUser().getUserId()
         );
     }
+
 }

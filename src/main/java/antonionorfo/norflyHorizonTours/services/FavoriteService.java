@@ -63,7 +63,9 @@ public class FavoriteService {
                 favorite.getUser().getUserId(),
                 favorite.getCity() != null ? favorite.getCity().getId() : null,
                 favorite.getExcursion().getExcursionId(),
-                favorite.getAddedFavoriteDate()
+                favorite.getAddedFavoriteDate(),
+                favorite.getExcursion().getTitle(),
+                favorite.getExcursion().getDescriptionExcursion()
         );
     }
 }

@@ -1,10 +1,12 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
 import antonionorfo.norflyHorizonTours.exception.BadRequestException;
+import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.payloads.CartDTO;
 import antonionorfo.norflyHorizonTours.payloads.ErrorDTO;
 import antonionorfo.norflyHorizonTours.services.CartService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,6 +34,24 @@ public class CartController {
             return ResponseEntity.internalServerError().build();
         }
     }
+
+    @GetMapping("/cartId")
+    public ResponseEntity<UUID> getCartId(@PathVariable UUID userId) {
+        logger.info("Fetching cartId for userId: {}", userId);
+
+        try {
+            UUID cartId = cartService.getCartIdByUserId(userId);
+            logger.info("CartId fetched successfully for userId: {}", userId);
+            return ResponseEntity.ok(cartId);
+        } catch (ResourceNotFoundException e) {
+            logger.error("Cart or User not found for userId {}: {}", userId, e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            logger.error("Error while fetching cartId for userId {}: {}", userId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
 
     @PostMapping("/items")
     public ResponseEntity<?> addItemToCart(
@@ -70,7 +90,7 @@ public class CartController {
     public ResponseEntity<CartDTO> updateItemQuantity(
             @PathVariable UUID userId,
             @PathVariable UUID cartItemId,
-            @RequestParam(required = false) Integer newQuantity
+            @RequestParam Integer newQuantity
     ) {
         logger.info("Attempting to update cart item quantity for userId: {}, CartItemId: {}, New Quantity: {}",
                 userId, cartItemId, newQuantity);
@@ -81,14 +101,20 @@ public class CartController {
         }
 
         try {
-            CartDTO updatedCart = cartService.updateCartItemQuantity(userId, cartItemId, newQuantity);
-            logger.info("Cart item updated successfully for userId: {}, CartItemId: {}", userId, cartItemId);
+            CartDTO updatedCart = cartService.updateCartItemQuantityAndRecalculateTotal(userId, cartItemId, newQuantity);
+
+            logger.info("Cart item updated successfully for userId: {}, CartItemId: {}, Updated Total: {}",
+                    userId, cartItemId, updatedCart.totalAmount());
+
             return ResponseEntity.ok(updatedCart);
+
+        } catch (ResourceNotFoundException e) {
+            logger.error("Resource not found while updating cart item for userId: {}, CartItemId: {}", userId, cartItemId, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         } catch (Exception e) {
             logger.error("Error while updating cart item for userId {}: {}", userId, e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
-        
     }
 
 

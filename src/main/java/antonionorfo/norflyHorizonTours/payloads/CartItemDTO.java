@@ -1,8 +1,7 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import antonionorfo.norflyHorizonTours.enums.DifficultyLevel;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -23,6 +22,20 @@ public record CartItemDTO(
 
         @NotNull(message = "Price is required!")
         @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than zero!")
-        BigDecimal price
+        BigDecimal price,
+
+        @NotEmpty(message = "Title is required!")
+        @Size(min = 2, max = 100, message = "Title must be between 2 and 100 characters!")
+        String title,
+
+        @NotEmpty(message = "Description is required!")
+        String descriptionExcursion,
+
+        @NotEmpty(message = "Duration is required!")
+        String duration,
+
+        @NotNull(message = "Difficulty level is required!")
+        DifficultyLevel difficultyLevel
+
 ) {
 }

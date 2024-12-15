@@ -133,9 +133,26 @@ public class CartService {
         return cartDTO;
     }
 
+    public UUID getCartIdByUserId(UUID userId) {
+        logger.info("Fetching cartId for userId: {}", userId);
+
+        // Trova l'utente dal repository
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + userId));
+
+        // Trova il carrello dell'utente o lancia un'eccezione se non esiste
+        Cart cart = cartRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found for user with ID: " + userId));
+
+        logger.info("CartId found for userId: {}, CartId: {}", userId, cart.getCartId());
+        return cart.getCartId();
+    }
+
 
     @Transactional
-    public CartDTO updateCartItemQuantity(UUID userId, UUID cartItemId, Integer newQuantity) {
+    public CartDTO updateCartItemQuantityAndRecalculateTotal(UUID userId, UUID cartItemId, Integer newQuantity) {
+        logger.info("Updating cart item quantity. User ID: {}, CartItem ID: {}, New Quantity: {}", userId, cartItemId, newQuantity);
+
         if (newQuantity <= 0) {
             throw new BadRequestException("Quantity must be greater than zero.");
         }
@@ -143,19 +160,35 @@ public class CartService {
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cart item not found with ID: " + cartItemId));
 
-        Excursion excursion = cartItem.getExcursion();
-        int availableSpots = excursion.getMaxParticipants() - cartItem.getQuantity();
+        if (!cartItem.getCart().getUser().getUserId().equals(userId)) {
+            throw new BadRequestException("Unauthorized action: Cart item does not belong to the user.");
+        }
 
-        if (newQuantity > cartItem.getQuantity() + availableSpots) {
-            throw new BadRequestException("Not enough available spots for this excursion.");
+        AvailabilityDate availabilityDate = cartItem.getAvailabilityDate();
+        int availableSeats = availabilityDate.getRemainingSeats() + cartItem.getQuantity();
+        if (newQuantity > availableSeats) {
+            throw new BadRequestException("Not enough available seats for this excursion.");
         }
 
         cartItem.setQuantity(newQuantity);
-        cartItem.setPrice(cartItem.calculatePrice());
+        cartItem.setPrice(cartItem.getExcursion().getPrice().multiply(BigDecimal.valueOf(newQuantity)));
         cartItemRepository.save(cartItem);
+        availabilityDate.setRemainingSeats(availableSeats - newQuantity);
+        availabilityDateRepository.save(availabilityDate);
 
-        return mapToCartDTO(cartItem.getCart());
+        Cart cart = cartItem.getCart();
+        BigDecimal newTotal = cart.getItems().stream()
+                .map(CartItem::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        cart.setTotalAmount(newTotal);
+        cartRepository.save(cart);
+
+        logger.info("Cart updated successfully. Cart ID: {}, New Total: {}", cart.getCartId(), newTotal);
+
+        // Ritorna il carrello aggiornato come DTO
+        return mapToCartDTO(cart);
     }
+
 
     @Transactional
     public void removeFromCart(UUID userId, UUID cartItemId) {
@@ -189,7 +222,11 @@ public class CartService {
                 cartItem.getExcursion().getExcursionId(),
                 cartItem.getAvailabilityDate().getAvailabilityId(),
                 cartItem.getQuantity(),
-                cartItem.getPrice()
+                cartItem.getPrice(),
+                cartItem.getExcursion().getTitle(),
+                cartItem.getExcursion().getDescriptionExcursion(),
+                cartItem.getExcursion().getDuration(),
+                cartItem.getExcursion().getDifficultyLevel()
         );
     }
 

@@ -38,4 +38,15 @@ public class CartItem {
     public BigDecimal calculatePrice() {
         return excursion.getPrice().multiply(BigDecimal.valueOf(quantity));
     }
+
+    @Override
+    public String toString() {
+        return "CartItem{" +
+                "cartItemId=" + cartItemId +
+                ", quantity=" + quantity +
+                ", price=" + price +
+                ", excursionId=" + (excursion != null ? excursion.getExcursionId() : "null") +
+                '}';
+    }
+
 }

@@ -34,7 +34,7 @@ public class Payment {
 
     private String transactionReference;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "cart_id")
     private Cart cart;
 

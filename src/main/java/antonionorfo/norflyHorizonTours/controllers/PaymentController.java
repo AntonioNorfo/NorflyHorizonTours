@@ -4,6 +4,8 @@ import antonionorfo.norflyHorizonTours.payloads.PaymentDTO;
 import antonionorfo.norflyHorizonTours.payloads.PaymentRequestDTO;
 import antonionorfo.norflyHorizonTours.services.PaymentService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,16 +17,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentController {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentController.class);
     private final PaymentService paymentService;
 
     @PostMapping
     public ResponseEntity<PaymentDTO> createPayment(
             @PathVariable UUID userId,
-            @RequestBody PaymentRequestDTO paymentRequestDTO
+            @RequestBody PaymentRequestDTO paymentRequestDTO,
+            @RequestParam List<UUID> selectedItemIds
     ) {
-        PaymentDTO createdPayment = paymentService.createPayment(userId, paymentRequestDTO);
+        log.info("Ricevuto userId: {}", userId);
+        log.info("selectedItemIds ricevuti: {}", selectedItemIds);
+
+        if (selectedItemIds == null || selectedItemIds.isEmpty()) {
+            throw new IllegalArgumentException("selectedItemIds non possono essere null o vuoti.");
+        }
+
+        PaymentDTO createdPayment = paymentService.createPayment(userId, paymentRequestDTO, selectedItemIds);
         return ResponseEntity.ok(createdPayment);
     }
+
 
     @PostMapping("/{paymentId}/finalize")
     public ResponseEntity<Void> finalizePayment(

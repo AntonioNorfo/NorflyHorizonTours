@@ -386,15 +386,22 @@ public class CityService {
 
 
     private Country findCountryByIdentifier(String identifier) {
-        if (isUUID(identifier)) {
-            return countryRepository.findById(UUID.fromString(identifier))
+        String normalizedIdentifier = identifier.trim().toLowerCase();
+
+        if (isUUID(normalizedIdentifier)) {
+            return countryRepository.findById(UUID.fromString(normalizedIdentifier))
                     .orElseThrow(() -> new IllegalArgumentException("Country not found with ID: " + identifier));
-        } else if (identifier.length() == 2) {
-            return countryRepository.findByCode(identifier)
+        } else if (normalizedIdentifier.length() == 2) {
+            return countryRepository.findAll().stream()
+                    .filter(country -> country.getCode().equalsIgnoreCase(normalizedIdentifier))
+                    .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Country not found with code: " + identifier));
         } else {
-            return countryRepository.findByName(identifier)
+            return countryRepository.findAll().stream()
+                    .filter(country -> country.getName().equalsIgnoreCase(normalizedIdentifier))
+                    .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException("Country not found with name: " + identifier));
         }
     }
+
 }

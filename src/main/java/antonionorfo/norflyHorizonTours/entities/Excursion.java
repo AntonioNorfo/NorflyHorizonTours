@@ -70,5 +70,22 @@ public class Excursion {
         throw new IllegalArgumentException("Unsupported duration format: " + duration);
     }
 
+    @Override
+    public String toString() {
+        return "Excursion{" +
+                "title='" + title + '\'' +
+                ", descriptionExcursion='" + descriptionExcursion + '\'' +
+                ", price=" + price +
+                ", duration='" + duration + '\'' +
+                ", difficultyLevel=" + difficultyLevel +
+                ", inclusions='" + inclusions + '\'' +
+                ", rules='" + rules + '\'' +
+                ", notRecommended='" + notRecommended + '\'' +
+                ", maxParticipants=" + maxParticipants +
+                ", city=" + city +
+                ", country=" + country +
+                ", markers=" + markers +
+                '}';
+    }
 }
 

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +20,9 @@ public class Cart {
     private UUID cartId;
 
     private LocalDateTime dateAddedCart;
+
+    private BigDecimal totalAmount = BigDecimal.ZERO;
+
     private Integer quantity;
 
     @ManyToOne
@@ -39,12 +43,11 @@ public class Cart {
     @Override
     public String toString() {
         return "Cart{" +
-                "dateAddedCart=" + dateAddedCart +
-                ", quantity=" + quantity +
-                ", user=" + user +
-                ", excursion=" + excursion +
-                ", availabilityDate=" + availabilityDate +
-                ", items=" + items +
+                "cartId=" + cartId +
+                ", totalItems=" + (items != null ? items.size() : 0) +
+                ", totalAmount=" + totalAmount +
+                ", userId=" + (user != null ? user.getUserId() : "null") +
                 '}';
     }
 }
+

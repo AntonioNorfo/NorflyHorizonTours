@@ -97,7 +97,7 @@ public class JWTCheckerFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String servletPath = request.getServletPath();
         boolean shouldSkip = new AntPathMatcher().match("/auth/**", servletPath)
-                || new AntPathMatcher().match("/countries/**", servletPath);
+                || new AntPathMatcher().match("/countries/**", servletPath) || new AntPathMatcher().match("/swagger-ui/**", servletPath);
         logger.debug("Should not filter? {} for path: {}", shouldSkip, servletPath);
         return shouldSkip;
     }
