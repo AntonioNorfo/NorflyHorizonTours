@@ -1,18 +1,13 @@
 package antonionorfo.norflyHorizonTours.payloads;
 
-import jakarta.validation.constraints.Future;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 public record BookingUpdateDTO(
-        @Future(message = "Start date must be in the future")
-        LocalDateTime startDate,
+        @Positive(message = "Quantity must be greater than zero!")
+        Integer quantity,
 
-        @Future(message = "End date must be in the future")
-        LocalDateTime endDate,
-
-        @Min(value = 1, message = "At least 1 seat must be booked!")
-        Integer numSeats
+        BigDecimal totalPrice
 ) {
 }

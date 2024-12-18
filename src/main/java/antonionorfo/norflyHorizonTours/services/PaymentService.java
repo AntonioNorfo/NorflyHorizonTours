@@ -36,12 +36,12 @@ public class PaymentService {
     @Transactional
     public PaymentDTO createPayment(UUID userId, PaymentRequestDTO paymentRequest, List<UUID> selectedItemIds) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Utente non trovato"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         Cart cart = cartRepository.findById(paymentRequest.cartId())
-                .orElseThrow(() -> new ResourceNotFoundException("Carrello non trovato"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cart not found"));
 
         if (!cart.getUser().getUserId().equals(userId)) {
-            throw new BadRequestException("Il carrello non appartiene all'utente.");
+            throw new BadRequestException("The cart does not belong to the user.");
         }
 
         List<CartItem> selectedItems = cart.getItems().stream()
@@ -49,7 +49,7 @@ public class PaymentService {
                 .collect(Collectors.toList());
 
         if (selectedItems.isEmpty()) {
-            throw new BadRequestException("Nessun elemento selezionato per il pagamento.");
+            throw new BadRequestException("No items selected for payment.");
         }
 
         BigDecimal totalAmount = selectedItems.stream()
@@ -68,8 +68,16 @@ public class PaymentService {
 
         paymentRepository.save(payment);
 
-
-        paymentRepository.save(payment);
+        for (CartItem item : selectedItems) {
+            Booking booking = new Booking();
+            booking.setBookingDate(LocalDateTime.now());
+            booking.setQuantity(item.getQuantity());
+            booking.setTotalPrice(item.calculatePrice());
+            booking.setUser(user);
+            booking.setExcursion(item.getExcursion());
+            booking.setAvailabilityDate(item.getAvailabilityDate());
+            bookingRepository.save(booking);
+        }
 
         cart.getItems().removeAll(selectedItems);
         cartRepository.save(cart);
@@ -77,32 +85,6 @@ public class PaymentService {
         return mapToDTO(payment);
     }
 
-
-    @Transactional
-    public void finalizePayment(UUID paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Payment not found"));
-
-        Cart cart = payment.getCart();
-        if (cart == null || cart.getItems().isEmpty()) {
-            throw new BadRequestException("Cart is empty or not linked to the payment.");
-        }
-
-        for (CartItem item : cart.getItems()) {
-            Booking booking = new Booking();
-            booking.setBookingDate(LocalDateTime.now());
-            booking.setStartDate(item.getAvailabilityDate().getDateAvailable());
-            booking.setEndDate(item.getAvailabilityDate().getDateAvailable().plusHours(item.getExcursion().getDurationInHours()));
-            booking.setStatusOfBooking("CONFIRMED");
-            booking.setNumSeats(item.getQuantity());
-            booking.setUser(payment.getUser());
-            booking.setExcursion(item.getExcursion());
-
-            bookingRepository.save(booking);
-        }
-
-        cartRepository.delete(cart);
-    }
 
     public PaymentDTO getPaymentById(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)

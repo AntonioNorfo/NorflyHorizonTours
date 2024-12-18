@@ -3,7 +3,6 @@ package antonionorfo.norflyHorizonTours.services;
 import antonionorfo.norflyHorizonTours.entities.*;
 import antonionorfo.norflyHorizonTours.exception.ResourceNotFoundException;
 import antonionorfo.norflyHorizonTours.payloads.AdminPostDTO;
-import antonionorfo.norflyHorizonTours.payloads.BookingDTO;
 import antonionorfo.norflyHorizonTours.payloads.ExcursionDTO;
 import antonionorfo.norflyHorizonTours.repositories.*;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ public class AdminService {
 
     public ExcursionDTO createExcursion(ExcursionDTO excursionDTO) {
         City city = cityRepository.findById(excursionDTO.cityId())
-                .orElseThrow(() -> new ResourceNotFoundException("Città non trovata con ID: " + excursionDTO.cityId()));
+                .orElseThrow(() -> new ResourceNotFoundException("City not found with ID: " + excursionDTO.cityId()));
 
         Excursion excursion = new Excursion();
         excursion.setTitle(excursionDTO.title());
@@ -46,28 +45,30 @@ public class AdminService {
 
     public ExcursionDTO updateExcursion(UUID excursionId, ExcursionDTO excursionDTO) {
         Excursion excursion = excursionRepository.findById(excursionId)
-                .orElseThrow(() -> new ResourceNotFoundException("Escursione non trovata!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Excursion not found!"));
         excursion.setTitle(excursionDTO.title());
         excursion.setDescriptionExcursion(excursionDTO.descriptionExcursion());
         excursion.setPrice(excursionDTO.price());
+        excursion.setDuration(excursionDTO.duration());
+        excursion.setDifficultyLevel(excursionDTO.difficultyLevel());
+        excursion.setInclusions(excursionDTO.inclusions());
+        excursion.setRules(excursionDTO.rules());
+        excursion.setNotRecommended(excursionDTO.notRecommended());
+        excursion.setMaxParticipants(excursionDTO.maxParticipants());
         excursionRepository.save(excursion);
         return mapToExcursionDTO(excursion);
     }
 
     public void deleteExcursion(UUID excursionId) {
         if (!excursionRepository.existsById(excursionId)) {
-            throw new ResourceNotFoundException("Escursione non trovata!");
+            throw new ResourceNotFoundException("Excursion not found!");
         }
         excursionRepository.deleteById(excursionId);
     }
 
-    public List<BookingDTO> getAllBookings() {
-        return bookingRepository.findAll().stream().map(this::mapToBookingDTO).toList();
-    }
-
     public void blockUser(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Utente non trovato!"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found!"));
         user.setBlocked(true);
         userRepository.save(user);
     }
@@ -82,7 +83,7 @@ public class AdminService {
 
     public AdminPostDTO updatePost(UUID postId, AdminPostDTO adminPostDTO) {
         AdminPost post = adminPostRepository.findById(postId)
-                .orElseThrow(() -> new ResourceNotFoundException("Post non trovato!"));
+                .orElseThrow(() -> new ResourceNotFoundException("Post not found!"));
         post.setTitlePost(adminPostDTO.titlePost());
         post.setContentPost(adminPostDTO.contentPost());
         adminPostRepository.save(post);
@@ -91,14 +92,14 @@ public class AdminService {
 
     public void deletePost(UUID postId) {
         if (!adminPostRepository.existsById(postId)) {
-            throw new ResourceNotFoundException("Post non trovato!");
+            throw new ResourceNotFoundException("Post not found!");
         }
         adminPostRepository.deleteById(postId);
     }
 
     public void deleteReview(UUID reviewId) {
         if (!reviewRepository.existsById(reviewId)) {
-            throw new ResourceNotFoundException("Recensione non trovata!");
+            throw new ResourceNotFoundException("Review not found!");
         }
         reviewRepository.deleteById(reviewId);
     }
@@ -127,18 +128,6 @@ public class AdminService {
         );
     }
 
-    private BookingDTO mapToBookingDTO(Booking booking) {
-        return new BookingDTO(
-                booking.getBookingId(),
-                booking.getUser().getUserId(),
-                booking.getExcursion().getExcursionId(),
-                booking.getBookingDate(),
-                booking.getStartDate(),
-                booking.getEndDate(),
-                booking.getNumSeats(),
-                booking.getStatusOfBooking()
-        );
-    }
 
     private AdminPostDTO mapToAdminPostDTO(AdminPost post) {
         return new AdminPostDTO(

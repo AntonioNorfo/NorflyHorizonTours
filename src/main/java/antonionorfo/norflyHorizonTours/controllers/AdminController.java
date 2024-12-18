@@ -1,7 +1,6 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
 import antonionorfo.norflyHorizonTours.payloads.AdminPostDTO;
-import antonionorfo.norflyHorizonTours.payloads.BookingDTO;
 import antonionorfo.norflyHorizonTours.payloads.ExcursionDTO;
 import antonionorfo.norflyHorizonTours.services.AdminService;
 import jakarta.validation.Valid;
@@ -9,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -35,10 +33,6 @@ public class AdminController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/bookings")
-    public ResponseEntity<List<BookingDTO>> getAllBookings() {
-        return ResponseEntity.ok(adminService.getAllBookings());
-    }
 
     @PutMapping("/users/{userId}/block")
     public ResponseEntity<Void> blockUser(@PathVariable UUID userId) {

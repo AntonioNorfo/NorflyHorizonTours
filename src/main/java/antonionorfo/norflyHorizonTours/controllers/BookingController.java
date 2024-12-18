@@ -1,14 +1,15 @@
 package antonionorfo.norflyHorizonTours.controllers;
 
-import antonionorfo.norflyHorizonTours.payloads.BookingCreateDTO;
 import antonionorfo.norflyHorizonTours.payloads.BookingDTO;
 import antonionorfo.norflyHorizonTours.services.BookingService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,45 +23,19 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @PostMapping
-    public ResponseEntity<BookingDTO> createBooking(@RequestBody @Valid BookingCreateDTO bookingCreateDTO) {
-        logger.info("Creating booking for user: {} and excursion: {}", bookingCreateDTO.userId(), bookingCreateDTO.excursionId());
-        try {
-            BookingDTO booking = bookingService.createBooking(bookingCreateDTO);
-            logger.info("Successfully created booking for user: {} and excursion: {}", bookingCreateDTO.userId(), bookingCreateDTO.excursionId());
-            return ResponseEntity.ok(booking);
-        } catch (Exception e) {
-            logger.error("Error creating booking: {}", e.getMessage());
-            return ResponseEntity.badRequest().body(null);
-        }
-    }
-
     @GetMapping
     public ResponseEntity<List<BookingDTO>> getUserBookings(@RequestParam UUID userId) {
-        logger.info("Fetching bookings for user: {}", userId);
+        logger.info("Fetching confirmed bookings for user: {}", userId);
         try {
-            List<BookingDTO> bookings = bookingService.getUserBookings(userId);
+            List<BookingDTO> bookings = bookingService.getConfirmedBookingsByUser(userId);
             if (bookings.isEmpty()) {
-                logger.info("No bookings found for user: {}", userId);
+                logger.info("No confirmed bookings found for user: {}", userId);
                 return ResponseEntity.noContent().build();
             }
-            logger.info("Successfully fetched bookings for user: {}", userId);
+            logger.info("Successfully fetched confirmed bookings for user: {}", userId);
             return ResponseEntity.ok(bookings);
         } catch (Exception e) {
-            logger.error("Error fetching bookings for user: {}", e.getMessage());
-            return ResponseEntity.internalServerError().build();
-        }
-    }
-
-    @DeleteMapping("/{bookingId}")
-    public ResponseEntity<Void> cancelBooking(@PathVariable UUID bookingId) {
-        logger.info("Canceling booking ID: {}", bookingId);
-        try {
-            bookingService.cancelBooking(bookingId);
-            logger.info("Successfully canceled booking ID: {}", bookingId);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            logger.error("Error canceling booking ID: {}", e.getMessage());
+            logger.error("Error fetching confirmed bookings for user: {}", e.getMessage(), e);
             return ResponseEntity.internalServerError().build();
         }
     }

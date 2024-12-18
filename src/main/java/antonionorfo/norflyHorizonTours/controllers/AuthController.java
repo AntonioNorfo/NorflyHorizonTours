@@ -5,17 +5,23 @@ import antonionorfo.norflyHorizonTours.enums.Role;
 import antonionorfo.norflyHorizonTours.exception.BadRequestException;
 import antonionorfo.norflyHorizonTours.exception.DuplicateResourceException;
 import antonionorfo.norflyHorizonTours.payloads.*;
-import antonionorfo.norflyHorizonTours.repositories.Create;
 import antonionorfo.norflyHorizonTours.repositories.UserRepository;
 import antonionorfo.norflyHorizonTours.services.AuthService;
 import antonionorfo.norflyHorizonTours.tools.MailgunSender;
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -27,6 +33,7 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final MailgunSender mailgunSender;
+    private final Cloudinary cloudinary;
 
     @PostMapping("/login")
     public LoginResponseDTO login(@RequestBody LoginRequestDTO body) {
@@ -42,7 +49,19 @@ public class AuthController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponseDTO register(@RequestBody @Validated(Create.class) UserDTO body, BindingResult validationResult) {
+    public UserResponseDTO register(
+            @RequestPart("user") String userJson,
+            @RequestPart(value = "file", required = false) MultipartFile file,
+            BindingResult validationResult) {
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        UserDTO body;
+        try {
+            body = objectMapper.readValue(userJson, UserDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new BadRequestException("Invalid JSON format for user: " + e.getMessage());
+        }
+
         if (validationResult.hasErrors()) {
             String message = validationResult.getAllErrors().stream()
                     .map(objectError -> objectError.getDefaultMessage())
@@ -65,6 +84,20 @@ public class AuthController {
         newUser.setPassword(passwordEncoder.encode(body.password()));
         newUser.setRole(Role.USER);
 
+        if (file != null && !file.isEmpty()) {
+            try {
+                Map<String, Object> uploadResult = cloudinary.uploader().upload(
+                        file.getBytes(),
+                        ObjectUtils.emptyMap()
+                );
+
+                String photoUrl = (String) uploadResult.get("secure_url");
+                newUser.setProfilePhotoUrl(photoUrl);
+            } catch (IOException e) {
+                throw new BadRequestException("Failed to upload profile photo: " + e.getMessage());
+            }
+        }
+
         userRepository.save(newUser);
 
         try {
@@ -82,6 +115,7 @@ public class AuthController {
                 newUser.getProfilePhotoUrl()
         );
     }
+
 
     @PostMapping("/register/admin")
     @ResponseStatus(HttpStatus.CREATED)

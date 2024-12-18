@@ -10,7 +10,9 @@ import antonionorfo.norflyHorizonTours.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +22,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CloudinaryService cloudinaryService;
 
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
@@ -94,8 +97,11 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
-    public User updateProfilePhoto(UUID userId, String photoUrl) {
+    public User updateProfilePhoto(UUID userId, MultipartFile file) throws IOException {
         User user = findById(userId);
+
+        String photoUrl = cloudinaryService.uploadImage(file);
+
         user.setProfilePhotoUrl(photoUrl);
         return userRepository.save(user);
     }

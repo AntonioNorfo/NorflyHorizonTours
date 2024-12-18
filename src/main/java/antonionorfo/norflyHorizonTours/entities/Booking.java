@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,14 +18,11 @@ import java.util.UUID;
 public class Booking {
     @Id
     @GeneratedValue
-
     private UUID bookingId;
 
     private LocalDateTime bookingDate;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private String statusOfBooking;
-    private Integer numSeats;
+    private Integer quantity;
+    private BigDecimal totalPrice;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -33,5 +31,21 @@ public class Booking {
     @ManyToOne
     @JoinColumn(name = "excursion_id")
     private Excursion excursion;
+
+    @ManyToOne
+    @JoinColumn(name = "availability_date_id")
+    private AvailabilityDate availabilityDate;
+
+    @Override
+    public String toString() {
+        return "Booking{" +
+                "bookingDate=" + bookingDate +
+                ", quantity=" + quantity +
+                ", totalPrice=" + totalPrice +
+                ", user=" + user +
+                ", excursion=" + excursion +
+                ", availabilityDate=" + availabilityDate +
+                '}';
+    }
 }
 

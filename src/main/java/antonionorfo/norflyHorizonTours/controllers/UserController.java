@@ -63,26 +63,32 @@ public class UserController {
 
 
     @PutMapping("/{userId}")
-    public ResponseEntity<UserDTO> updateUser(
+    public ResponseEntity<?> updateUser(
             @PathVariable UUID userId,
             @RequestBody @Valid UpdateUserDTO updateUserDTO) {
 
-        logger.info("Updating profile for user ID: {}", userId);
+        logger.info("Richiesta di aggiornamento per user ID: {}", userId);
+        logger.info("Dati ricevuti: firstName={}, lastName={}, password={}",
+                updateUserDTO.firstName(), updateUserDTO.lastName(), updateUserDTO.password());
 
-        userService.verifyPassword(userId, updateUserDTO.password());
+        try {
+            userService.verifyPassword(userId, updateUserDTO.password());
+            User updatedUser = userService.updateUserDetails(userId, updateUserDTO);
 
-        User updatedUser = userService.updateUserDetails(userId, updateUserDTO);
-
-        return ResponseEntity.ok(new UserDTO(
-                updatedUser.getUserId(),
-                updatedUser.getFirstName(),
-                updatedUser.getLastName(),
-                updatedUser.getUsername(),
-                updatedUser.getEmail(),
-                updatedUser.getProfilePhotoUrl(),
-                updatedUser.getRole(),
-                null
-        ));
+            return ResponseEntity.ok(new UserDTO(
+                    updatedUser.getUserId(),
+                    updatedUser.getFirstName(),
+                    updatedUser.getLastName(),
+                    updatedUser.getUsername(),
+                    updatedUser.getEmail(),
+                    updatedUser.getProfilePhotoUrl(),
+                    updatedUser.getRole(),
+                    null
+            ));
+        } catch (IllegalArgumentException e) {
+            logger.error("Password errata per user ID: {}", userId);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid password.");
+        }
     }
 
 
@@ -100,15 +106,14 @@ public class UserController {
             @PathVariable UUID userId,
             @RequestParam("file") MultipartFile file) {
         try {
-            logger.info("Uploading profile photo for user ID: {}", userId);
-            String photoUrl = cloudinaryService.uploadImage(file);
-            userService.updateProfilePhoto(userId, photoUrl);
-            return ResponseEntity.ok("Photo updated successfully: " + photoUrl);
+            User updatedUser = userService.updateProfilePhoto(userId, file);
+            return ResponseEntity.ok(updatedUser.getProfilePhotoUrl());
         } catch (IOException e) {
-            logger.error("Error uploading profile photo: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Photo upload failed!");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to upload profile photo: " + e.getMessage());
         }
     }
+
 
     @DeleteMapping("/{userId}")
     public ResponseEntity<String> deleteUser(@PathVariable UUID userId) {

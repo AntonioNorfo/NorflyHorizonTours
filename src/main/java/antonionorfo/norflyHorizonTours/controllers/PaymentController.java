@@ -38,15 +38,6 @@ public class PaymentController {
     }
 
 
-    @PostMapping("/{paymentId}/finalize")
-    public ResponseEntity<Void> finalizePayment(
-            @PathVariable UUID userId,
-            @PathVariable UUID paymentId
-    ) {
-        paymentService.finalizePayment(paymentId);
-        return ResponseEntity.ok().build();
-    }
-
     @GetMapping
     public ResponseEntity<List<PaymentDTO>> getAllPaymentsForUser(@PathVariable UUID userId) {
         List<PaymentDTO> payments = paymentService.getPaymentsByUser(userId);

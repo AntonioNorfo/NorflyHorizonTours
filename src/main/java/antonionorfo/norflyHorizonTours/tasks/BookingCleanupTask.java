@@ -17,12 +17,13 @@ public class BookingCleanupTask {
         this.bookingRepository = bookingRepository;
     }
 
-    @Scheduled(cron = "0 0 * * * *") //
+    @Scheduled(cron = "0 0 * * * *")
     public void cancelUnpaidBookings() {
         LocalDateTime cutoffTime = LocalDateTime.now().minusHours(24);
 
-        int deletedCount = bookingRepository.deleteByStatusAndBookingDateBefore("PENDING", cutoffTime);
+        int deletedCount = bookingRepository.deleteByBookingDateBefore(cutoffTime);
 
-        log.info("Deleted {} unpaid bookings older than 24 hours.", deletedCount);
+        log.info("Deleted {} bookings older than 24 hours.", deletedCount);
     }
+
 }

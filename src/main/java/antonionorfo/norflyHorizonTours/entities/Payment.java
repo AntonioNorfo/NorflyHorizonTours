@@ -42,4 +42,16 @@ public class Payment {
     @JoinColumn(name = "user_id")
     private User user;
 
+    @Override
+    public String toString() {
+        return "Payment{" +
+                "amountPayment=" + amountPayment +
+                ", paymentDate=" + paymentDate +
+                ", methodPayment=" + methodPayment +
+                ", statusPayment=" + statusPayment +
+                ", transactionReference='" + transactionReference + '\'' +
+                ", cart=" + cart +
+                ", user=" + user +
+                '}';
+    }
 }
